@@ -21,7 +21,9 @@
   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   * SOFTWARE.
   *
-  * Javascript library for client side plugin handling, loading dynamic content, messages and alerts.
+  * Javascript library for client side plugin handling,
+  * loading dynamic content, messages and alerts.
+  *
   */
 
 /**
@@ -44,12 +46,34 @@ function loadDataIntoEl(url, el, callback) {
 }
 
 /**
+ * @method Set the value of the display style of the loader.
+ * @param {display} display Value of the display style: block, none ...
+ * @return {void}
+ */
+function setLoaderDisplay(display){
+	var loader = document.getElementById("loader");
+	loader.style.display = display;
+}
+
+/**
+ * @method Set the value of the display style of the screen lockers.
+ * @param {display} display Value of the display style: block, none ...
+ * @return {void}
+ */
+function setLockerDisplay(display){
+	var lockers = document.getElementsByClassName("locker");
+	for (var i = 0; i < lockers.length; i++){
+		lockers[0].style.display = display;
+	}
+}
+
+/**
  * @method show the screen locker and the loader gif image.
  * @return {void}
  */
 function lockScreen() {
-	$('#loader').show();
-	$('.locker').show();
+	setLoaderDisplay("block");
+	setLockerDisplay("block");
 }
 
 /**
@@ -57,7 +81,7 @@ function lockScreen() {
  * @return {void}
  */
 function unlockScreen() {
-	$('.locker').hide();
+	setLockerDisplay("none");
 }
 
 /**
@@ -65,7 +89,29 @@ function unlockScreen() {
  * @return {void}
  */
 function hideLoader() {
-	$('#loader').hide();
+	setLoaderDisplay("none");
+}
+
+/**
+ * @method Fade out given element.
+ * @param  {DOMElement}   el       Element of the DOM to fade out.
+ * @param  {Number}   		delay    Delay until the given element is transparent.
+ * @param  {Function} 		callback Callback function.
+ * @return {void}
+ */
+function fadeOut(el,delay,callback) {
+	var OPACITY_FADE_OUT = 0.05;
+	var OPACITY_FADE_OUT_LIMIT = 0.50;
+	el.style.opacity = 1;
+	var frequency = delay * OPACITY_FADE_OUT;
+  var fade = setInterval(function () {
+		if (el.style.opacity > OPACITY_FADE_OUT_LIMIT){
+			el.style.opacity -= OPACITY_FADE_OUT;
+		}else{
+			clearInterval(fade);
+			callback();
+		}
+  }, frequency);
 }
 
 /**
@@ -84,11 +130,17 @@ U.mouseX = 0;
  */
 U.mouseY = 0;
 
-// track mouse X and mouse Y
-window.onmousemove = function(e) {
-  U.mouseX = e.clientX;
-  U.mouseY = e.clientY;
-};
+/**
+ * Array of functions to call when document.onload.
+ * @type {Array}
+ */
+U.oDLF = [];
+
+/**
+ * Array of functions to call when window.onmousemouve.
+ * @type {Array}
+ */
+U.oMMF = [];
 
 /**
  * @function Returns true if a value is undefined or null, otherwise returns false.
@@ -100,6 +152,23 @@ U.un = function(value){
 		return true;
 	}
 };
+
+/**
+ * @function Returns the name of the type of the given object
+ * @param  {Object} obj Object from which we want to know the type.
+ * @return {String}     Type of the given object.
+ */
+U.type = function(obj) {
+    if (Array.isArray(obj)){
+			return "array";
+		} else if (typeof obj == "string"){
+			return "string";
+		} else if (obj != null && typeof obj == "object"){
+			return "object";
+		} else{
+			return "other";
+		}
+}
 
 /**
  * @method Load a javascript file.
@@ -114,6 +183,77 @@ U.loadjs = function(src) {
 };
 
 /**
+ * Add function to be called when window.onload.
+ * @param  {Function} fn Function to be called when window.onload.
+ * @return {void}
+ */
+U.onWindowLoad = function(fn){
+	if (typeof fn == "function"){
+		U.oDLF.push(fn);
+	}else{
+		console.alert("Only function can be called on document load.");
+	}
+};
+
+/**
+ * Add function to be called when window.mousemouve.
+ * @param  {Function} fn Function to be called when window.mousemouve.
+ * @return {void}
+ */
+U.onMouseMove = function(fn){
+	if (typeof fn == "function"){
+		U.oMMF.push(fn);
+	}else{
+		console.alert("Only function can be called on mouse move.");
+	}
+};
+
+/**
+ * Loop throw an array of functions and call each one.
+ * @param  {Array} fns Array of functions to call.
+ * @param  {Object} param   Object or null to pass to the functions.
+ * @return {void}
+ */
+U.callFunctions = function(fns,param){
+	for (var i = 0; i < fns.length; i++){
+		fn = fns[i];
+		if (typeof fn == "function"){
+			fn(param);
+		}else{
+			console.alert("Only functions can be called.");
+		}
+	}
+};
+
+// call functions on mouse mouve.
+window.onmousemove = function(e) {
+	U.callFunctions(U.oMMF,e);
+};
+
+// call functions on window load.
+window.onload = function(e){
+	U.callFunctions(U.oDLF,e);
+};
+
+// check if local storage is used
+// for caching.
+U.onWindowLoad(function(e){
+	if (!U.un(window.sessionStorage["CH_storage"])){
+		CH(window.sessionStorage["CH_storage"], window.sessionStorage["CH_maxSize"]);
+	}else if(!U.un(window.localStorage["CH_storage"])){
+		CH(window.localStorage["CH_storage"], window.localStorage["CH_maxSize"]);
+	}
+	CH.parseObjects();
+});
+
+// track mouse X and mouse Y
+U.onMouseMove(function(e){
+	U.mouseX = e.clientX;
+  U.mouseY = e.clientY;
+});
+
+
+/**
  * @class Class for displaying rich html tooltips.
  */
 function Tooltip(){};
@@ -124,7 +264,10 @@ function Tooltip(){};
  * @return {void}
 */
 Tooltip.new = function(id){
-	var tooltip = $("body").append("<span style=\"border:2px solid #444;padding:5px;background-color:#fff;display:none;position:fixed;overflow:hidden;\" id=\"underdog-tooltip-" + id + "\">hii</span>");
+	var span = document.createElement('span');
+	span.setAttribute("id", "underdog-tooltip-" + id);
+	span.setAttribute("style", "border:2px solid #444;padding:5px;background-color:#fff;display:none;position:fixed;overflow:hidden;");
+	document.body.appendChild(span);
 };
 
 /**
@@ -166,8 +309,8 @@ Tooltip.show = function(id, message, x, y){
  * @return {void}
  */
 Tooltip.hide = function(id){
-	var tooltip = $("#underdog-tooltip-" + id);
-	tooltip.css("display","none");
+	var tooltip = document.getElementById("underdog-tooltip-" + id);
+	tooltip.style.display = "none";
 };
 
 /**
@@ -204,19 +347,22 @@ Message.getDiv = function(type, text){
  * @return {void}
  */
 Message.show = function(type, text, callback) {
-	$('#messageslog').empty();
-	$('#messageslog').show();
+	var messageslog = document.getElementById("messageslog");
+	messageslog.innerHTML = "";
+	messageslog.style.display = "block";
 	if (type == 'error') {
 		type = 'warning';
 	}
 	hideLoader();
-	$('#messageslog').append(Message.getDiv(type, text));
-	var delay = 2000;
+	messageslog.innerHTML = Message.getDiv(type, text);
+	var delay = 1500;
 	if (type == 'error') {
 		delay = 2500;
 	}
-	$('#messageslog').fadeOut(1500, function() {
-		$('#messageslog').hide(callback);
+
+	fadeOut(messageslog, delay, function() {
+		messageslog.style.display = "none";
+		callback();
 	});
 };
 
@@ -438,10 +584,25 @@ EM.render = function(editor,field){
 		popup.appendChild(popupButtons);
 	}
 	EM.popupBody.innerHTML = editor.getHTML(EM.field);
-	console.log('editor => ', editor);
 	editor.run();
 	EM.activeEditor = editor;
 	EM.popup.style.display = "inline";
+};
+
+EM.formTemplate = function(url,data,callback){
+	CRUD.load(url, function(templateHtml){
+		var html = "";
+		var obj = null;
+		for (var key in data) {
+	    obj = data[key];
+			var templateHtmlCopy = templateHtml;
+			for (var key in obj) {
+			  templateHtmlCopy = templateHtmlCopy.replace(new RegExp("{{" + key + "}}", "g"), obj[key]);
+			}
+			html += templateHtmlCopy;
+		}
+		callback(html);
+	});
 };
 
 /**
@@ -464,6 +625,111 @@ EM.ok = function(){
 	EM.activeEditor.setFieldValue(EM.field);
 	EM.remove();
 };
+
+/**
+ * @class Cache Handler class.
+ *        Manage the cache of the application.
+ *        Can use HTML local storage or session storage.
+ */
+function CH(storage,maxSize){
+	if (storage == 'session'){
+		CH.storage = window.sessionStorage;
+	}else if (storage == 'local'){
+		CH.storage = window.localStorage;
+	}
+	// set storage and max value for later recovery.
+	CH.storage["CH_storage"] = storage;
+	CH.storage["CH_maxSize"] = maxSize;
+};
+
+/**
+ * Object where to store the cached data:
+ * window.localStorage: stores data with no expiration date.
+ * window.sessionStorage: stores data for one session (data is lost when the browser tab is closed).
+ * new created: only valid until window is reloaded.
+ * @type {Object}
+ */
+CH.storage = {};
+
+/**
+ * Object where store the objects cached.
+ * because session or local storage can only
+ * store strings.
+ * @type {Object}
+ */
+CH.objStorage = {};
+
+/**
+ * max Size in KB of the data to cache.
+ * @type {Number}
+ */
+CH.maxSize = 1024;
+
+/**
+ * Insert or retrieve cached data.
+ * @param  {String} id      Identifier of the cached data.
+ * @param  {Object} content if Object data to cache, if null, it means we retrieve data.
+ * @return {Object|void}		Data cached or void if insertion operation.
+ */
+CH.cache = function(id,content){
+	if(content == null){
+		// retrieve content
+		var obj = CH.objStorage[id];
+		if (U.un(obj)){
+			// content is a string
+			return CH.storage[id];
+		}else{
+			// content is a JSONObject or a JSONArray.
+			return CH.objStorage[id];
+		}
+	}else{
+		// cache content
+		var type = U.type(content);
+		if (type == "object" || type == "array"){
+			// content is a JSONObject or a JSONArray
+			// store content in a temporary store for
+			// quick access and a stringified version
+			// in the more long term storage for later
+			// recovery.
+			CH.objStorage[id] = content;
+			new Promise(function (resolve, reject) {
+				CH.storage[id] = JSON.stringify(content);
+				resolve();
+	    });
+		}else{
+			// content is a string, store it in the
+			// long term storage.
+			CH.storage[id] = content;
+		}
+	}
+};
+
+/**
+ * Clear cache, remove all cached data or just one cached item.
+ * @param  {String} id Identifier of data to cache.
+ * @return {void}
+ */
+CH.clear = function(id){
+	if(id == null){
+		// remove all cached data.
+		CH.storage = {};
+		CH.objStorage = {};
+	}else{
+		// remove one cached item with a given id
+		delete CH.storage[id];
+		delete CH.objStorage[id];
+	}
+};
+
+CH.parseObjects = function(){
+	// parse JSONObject and JSONArray to objStorage.
+	// local and session storage only stores strings.
+	for ( var key in CH.storage ){
+		try{
+			CH.objStorage[key] = JSON.parse(CH.storage[key]);
+		}catch(err){}
+	}
+}
 
 /**
   * @class Class for making ajax requests.
@@ -507,7 +773,7 @@ CRUD.load = function(url, callback, parseJSON, method, data) {
 				break;
 			}
 			catch(e){}
-		 }
+		 } // end for
 	}
 
 	xhr.onreadystatechange = ensureReadiness;
@@ -521,6 +787,7 @@ CRUD.load = function(url, callback, parseJSON, method, data) {
 			return;
 		}
 
+		// all is well
 		if(xhr.readyState === 4) {
 			if ( U.un(parseJSON) ){
 				callback(xhr.responseText);
@@ -540,7 +807,6 @@ CRUD.load = function(url, callback, parseJSON, method, data) {
 		for (key in data) {
 		  query += encodeURIComponent(key) + "=" + encodeURIComponent(data[key]) + "&";
 		}
-		console.log('query => ', query);
 		xhr.send(query);
 	}else{
 		xhr.send();
