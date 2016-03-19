@@ -26,6 +26,38 @@
   *
   */
 
+var UNDERDOG_PATH = "";
+
+/**
+ * Set the path of the underdog library.
+ * @param {String} path Path of the library.
+ */
+function setUnderdogPath(path){
+	UNDERDOG_PATH = path;
+}
+
+/**
+ * @method Cleans CKEditor instances and then makes an ajax request and displays the response in an existant DOM object.
+ * @param  {String}   url      Url from which we obtain the data to be displayed.
+ * @param  {Object}   el       DOM element into which we want to display the response.
+ * @param  {Function} callback Callback function
+ * @return {void}
+ */
+function loadIntoEl(url, el, callback) {
+	lockScreen();
+
+	var ckeditorTextarea = document.getElementsByClassName("ckeditor");
+	for (var i = 0; i < ckeditorTextarea.length; i++) {
+		var textareaId = ckeditorTextarea.eq(i).attr('id');
+		var myEditor = CKEDITOR.instances[textareaId];
+		if (myEditor) {
+			CKEDITOR.remove(myEditor);
+		}
+	};
+
+	loadDataIntoEl(url, el, callback);
+}
+
 /**
  * @method Makes an ajax request and displats the response in an existan DOM object.
  * @param  {String}   url      Url from which we obtain the data to be displayed.
@@ -46,24 +78,26 @@ function loadDataIntoEl(url, el, callback) {
 }
 
 /**
- * @method Set the value of the display style of the loader.
- * @param {display} display Value of the display style: block, none ...
- * @return {void}
- */
-function setLoaderDisplay(display){
-	var loader = document.getElementById("loader");
-	loader.style.display = display;
-}
-
-/**
  * @method Set the value of the display style of the screen lockers.
  * @param {display} display Value of the display style: block, none ...
  * @return {void}
  */
 function setLockerDisplay(display){
-	var lockers = document.getElementsByClassName("locker");
-	for (var i = 0; i < lockers.length; i++){
-		lockers[0].style.display = display;
+	var locker = document.getElementById("locker");
+
+	if (locker==null){
+		// locker does not exist in DOM, create it.
+		var lockerEl = document.createElement('div');
+		lockerEl.setAttribute("id", "locker");
+		lockerEl.setAttribute("style", "position:fixed;top:0px;left:0px;width:100%;height:100%;z-index:1000;background-color:rgba(0,0,128,0.1);");
+		var html = "<div id=\"messageslog\" class=\"center\"></div>";
+		if (UNDERDOG_PATH!=""){
+			html += "<img id=\"loader\" src=\"" + UNDERDOG_PATH + "/images/loader.gif\" class=\"margin-top:50%;\" width=32 />";
+		}
+		lockerEl.innerHTML = html;
+		document.body.appendChild(lockerEl);
+	}else{
+		locker.style.display = display;
 	}
 }
 
@@ -72,7 +106,6 @@ function setLockerDisplay(display){
  * @return {void}
  */
 function lockScreen() {
-	setLoaderDisplay("block");
 	setLockerDisplay("block");
 }
 
@@ -82,14 +115,6 @@ function lockScreen() {
  */
 function unlockScreen() {
 	setLockerDisplay("none");
-}
-
-/**
- * @method Hide the loader gif image.
- * @return {void}
- */
-function hideLoader() {
-	setLoaderDisplay("none");
 }
 
 /**
@@ -154,6 +179,17 @@ U.un = function(value){
 };
 
 /**
+ * Escape RegExp especial characters,
+ * for example in a RegExp + or * has a meaning
+ * then they will be escaped \+ and \* .
+ * @param  {String} str String to escape characters.
+ * @return {String}     Escaped string.
+ */
+U.escapeSpecialCharsRegExp = function(str){
+  return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+};
+
+/**
  * @function Returns the name of the type of the given object
  * @param  {Object} obj Object from which we want to know the type.
  * @return {String}     Type of the given object.
@@ -175,11 +211,38 @@ U.type = function(obj) {
  * @param  {String} src Path of the javascript file.
  * @return {void}
  */
-U.loadjs = function(src) {
-  var el = document.createElement("script");
-  el.type = "application/javascript";
-  el.src = src;
-  document.body.appendChild(el);
+U.loadjs = function(src, callback) {
+	if (!U.un(src)){
+		if (U.un(callback)){
+		  var el = document.createElement("script");
+		  el.type = "application/javascript";
+		  el.src = src;
+		  document.body.appendChild(el);
+		}else{
+			var fileref = document.createElement('script');
+	    var done = false;
+	    var head = document.getElementsByTagName("head")[0];
+
+	    fileref.onload = fileref.onreadystatechange = function () {
+        if (!done && (!this.readyState || this.readyState === "loaded" || this.readyState === "complete")) {
+          done = true;
+
+          callback();
+
+          // Handle memory leak in IE
+          fileref.onload = fileref.onreadystatechange = null;
+          if (head && fileref.parentNode) {
+              head.removeChild(fileref);
+          }
+        }
+	    };
+
+	    fileref.setAttribute("type", "text/javascript");
+	    fileref.setAttribute("src", src);
+
+	    head.appendChild(fileref);
+		}
+	}
 };
 
 /**
@@ -235,23 +298,21 @@ window.onload = function(e){
 	U.callFunctions(U.oDLF,e);
 };
 
-// check if local storage is used
-// for caching.
-U.onWindowLoad(function(e){
-	if (!U.un(window.sessionStorage["CH_storage"])){
-		CH(window.sessionStorage["CH_storage"], window.sessionStorage["CH_maxSize"]);
-	}else if(!U.un(window.localStorage["CH_storage"])){
-		CH(window.localStorage["CH_storage"], window.localStorage["CH_maxSize"]);
-	}
-	CH.parseObjects();
-});
-
 // track mouse X and mouse Y
 U.onMouseMove(function(e){
 	U.mouseX = e.clientX;
   U.mouseY = e.clientY;
 });
 
+/**
+ * @method Creates a finally method for promises
+ * @param  {Function} handler Function to call on fullfill and on regection.
+ * @return {void}
+ */
+ Promise.prototype.finally = function(handler) {
+ 	if (typeof handler !== "function") return this.then();
+ 	return this.then(handler,handler);
+ };
 
 /**
  * @class Class for displaying rich html tooltips.
@@ -264,10 +325,13 @@ function Tooltip(){};
  * @return {void}
 */
 Tooltip.new = function(id){
-	var span = document.createElement('span');
-	span.setAttribute("id", "underdog-tooltip-" + id);
-	span.setAttribute("style", "border:2px solid #444;padding:5px;background-color:#fff;display:none;position:fixed;overflow:hidden;");
-	document.body.appendChild(span);
+	var el = document.getElementById(id);
+	if (el==null){
+		var span = document.createElement('span');
+		span.setAttribute("id", "underdog-tooltip-" + id);
+		span.setAttribute("style", "border:2px solid #444;padding:5px;background-color:#fff;display:none;position:fixed;overflow:hidden;");
+		document.body.appendChild(span);
+	}
 };
 
 /**
@@ -402,17 +466,181 @@ Alert.yesno = function(message, callback) {
 function PH(){};
 
 /**
- * List of events.
+ * Id of the cached list of plugins configurations.
+ * @type {String}
+ */
+PH.CACHED_CONFIGURATIONS_ID = "PH.configurations";
+
+/**
+ * Id of the cached plugins resources.
+ * @type {String}
+ */
+PH.CACHED_RESOURCES_ID = "PH.resources";
+
+/**
+ * Relative recap event-plugins file path.
+ * This file contains the JSON called descriptor.
+ * @type {String}
+ */
+PH.EVENT_PLUGIN_JSON_FILE = "plugins.json";
+
+/**
+ * Id of cached descriptor, the JSON containing
+ * the pairs event-plugins. It will be used to know
+ * what plugins should be run when an event
+ * is fired.
+ * @type {String}
+ */
+PH.CACHED_DESCRIPTOR_ID = "PH.descriptor";
+
+/**
+ * Name of the plugin event fired at the end of
+ * PH.load function.
+ * @type {String}
+ */
+PH.LOAD_PH_AFTER_EVENT = "load-ph-after";
+
+/**
+ * Root url where all the plugins are.
+ * @type {String}
+ */
+PH.root = null;
+
+/**
+ * List of events and plugins.
+ * Example:
+ * 		"load-ph-after" => [PluginA JSON, PluginB JSON].
  * @type {JSONObject}
  */
 PH.events = {};
 
 /**
- * @method Load all the client side plugins javascript files.
+ * In cache:
+ *
+ * List of plugins configurations.
+ * @type {JSONObject}
+ * PH.configurations
+ *
+ * Description of events and plugins.
+ * @type {JSONObject}
+ * PH.descriptor
+ */
+
+/**
+ * Load client plugins descriptor json with all the information
+ * on when to fire plugins and if they need to be lazy loaded or
+ * eager loaded.
+ * @param  {String} url Url of the json event file.
  * @return {void}
  */
-PH.load = function(){
-	U.loadjs("/plugin/plugin.js");
+PH.load = function(url,cacheType){
+	// cache descriptor file
+	CH(cacheType);
+	CH.parseObjects();
+
+	// url path where all plugins are.
+	PH.root = url;
+
+	// create an object to store the plugins configurations
+	// if it does not already exist.
+	if (U.un(CH.cache(PH.CACHED_CONFIGURATIONS_ID))){
+		CH.cache(PH.CACHED_CONFIGURATIONS_ID,{});
+	}
+
+	// create an object to store the plugins resources
+	// if it does not already exist.
+	if (U.un(CH.cache(PH.CACHED_RESOURCES_ID))){
+		CH.cache(PH.CACHED_RESOURCES_ID,{});
+	}
+
+	// load eager plugins and plugins to run now.
+	var initialPluginLoad = function(descriptorJSON){
+		new Promise(function (resolve, reject) {
+			// loop throw descriptor file and load the eager load plugins.
+			for (var eventName in descriptorJSON){
+				if(eventName!=PH.LOAD_PH_AFTER_EVENT){
+					PH.loadPlugins(eventName,"eager");
+				}
+			}
+			resolve();
+    }).finally(function(){
+			// fire the event that tells PH is loaded.
+			PH.fire(PH.LOAD_PH_AFTER_EVENT);
+		});
+	};
+
+	// check if descriptor JSON is already cached.
+	var descriptorJSON = CH.cache(PH.CACHED_DESCRIPTOR_ID);
+	if (U.un(descriptorJSON)){
+		// not cached, request it and cache it.
+		url += PH.EVENT_PLUGIN_JSON_FILE;
+		CRUD.loadJSON(url, function(descriptor){
+			CH.cache(PH.CACHED_DESCRIPTOR_ID,descriptor);
+			initialPluginLoad(descriptor);
+		});
+	}else{
+		// decriptor is cached
+		initialPluginLoad(descriptorJSON);
+	}
+};
+
+/**
+ * Load a client side plugin javascript file.
+ * @param  {String} eventName [description]
+ * @param  {String} loadType  null | lazy | eager
+ * @return {[type]}           [description]
+ */
+PH.loadPlugins = function(eventName,loadType,callback){
+	if (loadType==null || (loadType != "eager" && loadType != "lazy")){
+		loadType = "lazy";
+	}
+
+	var descriptor = CH.cache(PH.CACHED_DESCRIPTOR_ID);
+	if (descriptor.hasOwnProperty(eventName)){
+		var plugins = descriptor[eventName];
+
+		// Load synchronously and callback once.
+		if(plugins.length > 0){
+			var recursiveLoad = function(plugins,loadType,callbackRL,i){
+				if (i==null){
+					i = 0;
+				}
+				if(plugins.length > i){
+					plugin = plugins[i];
+					if ( ( (plugin.hasOwnProperty("load") && plugin["load"] == loadType ) || (!plugin.hasOwnProperty("load") && loadType == "lazy") ) && plugin.hasOwnProperty("package") && plugin.hasOwnProperty("plugin")){
+						plugins[i].load = "done";
+						PH.loadPlugin(plugin,function(){
+							i++;
+							recursiveLoad(plugins, loadType, callbackRL, i);
+						});
+					}else{
+						i++;
+						recursiveLoad(plugins, loadType, callbackRL, i);
+					}
+				}else{
+					if (!U.un(callbackRL)){
+						callbackRL();
+					}
+				}
+			};
+			recursiveLoad(plugins,loadType,callback);
+		}
+	}else{
+		if (!U.un(callback)){
+			callback();
+		}
+	}
+};
+
+/**
+ * @method Load a client side plugin javascript file.
+ * @return {void}
+ */
+PH.loadPlugin = function(plugin,callback){
+	PH.loadPluginConfiguration(plugin,function(){
+		var url = PH.root + plugin["package"] + "/client/" + plugin["plugin"] + ".js";
+		U.loadjs(url,callback);
+	});
 };
 
 /**
@@ -423,9 +651,13 @@ PH.load = function(){
  */
 PH.add = function(plugin, parameters){
 	var pluginEvents = plugin.events;
-	if ( U.un(pluginEvents) ){
-		PH.wrappedRun(plugin, parameters);
+	if ( U.un(pluginEvents) || pluginEvents.length == 0 ){
+		// when a plugin is added without specifying the events
+		// when it has to be run, it is run when added.
+		PH.wrappedRun(plugin,parameters,null);
 	}else{
+		// plugin is added to event array, and it will wait
+		// to be run until the event is fired.
 		var pluginEvent = null;
 		for ( var i = 0; i < pluginEvents.length; i++ ){
 			pluginEvent = pluginEvents[i];
@@ -438,6 +670,30 @@ PH.add = function(plugin, parameters){
 };
 
 /**
+ * @method retrieve plugin configuration JSON.
+ * @param  {JSONObject}   plugin   Plugin package and name.
+ * @param  {Function} callback Callback function to call after configuration is retrieved.
+ * @return {void}
+ */
+PH.loadPluginConfiguration = function(plugin,callback){
+	// get plugin configuration
+	// check if configuration json is already cached
+	var configurations = CH.cache(PH.CACHED_CONFIGURATIONS_ID);
+	var key = plugin["package"] + "." + plugin["plugin"];
+	if (configurations.hasOwnProperty(key)){
+		callback(plugin);
+	}else{
+		// configuration is not cached request it and cache it.
+		var url = PH.root + "/" + plugin["package"] + "/configuration.json";
+		CRUD.loadJSON(url, function(configuration){
+			configurations[key] = configuration;
+			CH.cache(PH.CACHED_CONFIGURATIONS_ID, configurations);
+			callback(plugin);
+		});
+	}
+};
+
+/**
  * @method Fire an event that can potentialy run plugins.
  * @param  {String}   eventName	Name of the event.
  * @param  {Function} callback	Callback function.
@@ -445,19 +701,22 @@ PH.add = function(plugin, parameters){
  * @return {void}
  */
 PH.fire = function(eventName, parameters, callback){
-	if (!U.un(PH.events[eventName])){
-		var plugins = PH.events[eventName];
-		var plugin = null;
-		for ( var i = 0; i < plugins.length; i++ ){
-			plugin = plugins[i];
-			PH.wrappedRun(plugin, parameters, callback);
+	// lazy load and run the plugins not loaded yet.
+	PH.loadPlugins(eventName,"lazy",function(){
+		if (PH.events.hasOwnProperty(eventName)){
+			var plugins = PH.events[eventName];
+			var plugin = null;
+			for ( var i = 0; i < plugins.length; i++ ){
+				plugin = plugins[i];
+				PH.wrappedRun(plugin, parameters, eventName, callback);
+			}
+		}else{
+			// call callback function.
+			if (!U.un(callback)){
+				callback(parameters);
+			}
 		}
-	}else{
-		// call callback function.
-		if (!U.un(callback)){
-			callback(parameters);
-		}
-	}
+	});
 };
 
 /**
@@ -465,26 +724,48 @@ PH.fire = function(eventName, parameters, callback){
  * @param  {JSONObject} plugin plugin to wrap.
  * @return {void}
  */
-PH.wrappedRun = function(plugin, parameters, callback){
+PH.wrappedRun = function(plugin, parameters, eventName, callback){
 	// fire before event.
 	PH.fire(plugin.id + "-before", parameters, function(parameters){
 		// use promise for asynchronous plugin run.
 		new Promise(function (resolve, reject) {
 			// fire in-process event.
 			PH.fire(plugin.id + "-in-process",parameters);
+			// get plugin configuration.
+			var configuration = CH.cache(PH.CACHED_CONFIGURATIONS_ID)[plugin.id];
+			if(U.un(configuration)){
+				configuration = {};
+			}
 			// run plugin.
-			plugin.run(parameters);
-			resolve();
-    }).then(function(){
+			try{
+				var value = plugin.run(parameters,configuration,eventName);
+				resolve(value);
+			}catch(err){
+				reject("error_plugin_execution.");
+			}
+    }).then(function(value){
 			// call callback function.
 			if (!U.un(callback)){
-				callback(parameters);
+				callback(value);
+			}
+		},function(reason){
+			// call callback function.
+			if (!U.un(callback)){
+				callback({"success":false,"message":reason});
 			}
 		}).finally(function(){
 			// fire after event.
 			PH.fire(plugin.id + "-after", parameters);
 		});
 	});
+};
+
+/**
+ * Get resource directory path of a plugin
+ * @return {String} Resource directory path.
+ */
+PH.getResourcePath = function(plugin){
+	return PH.root + "/" + plugin.package + "/client/resources/";
 };
 
 /**
@@ -721,9 +1002,12 @@ CH.clear = function(id){
 	}
 };
 
+/**
+ * Parse JSONObject and JSONArray to objStorage.
+ * Local and session storage only stores strings.
+ * @return {void}
+ */
 CH.parseObjects = function(){
-	// parse JSONObject and JSONArray to objStorage.
-	// local and session storage only stores strings.
 	for ( var key in CH.storage ){
 		try{
 			CH.objStorage[key] = JSON.parse(CH.storage[key]);
@@ -771,9 +1055,8 @@ CRUD.load = function(url, callback, parseJSON, method, data) {
 			try {
 				xhr = new ActiveXObject(versions[i]);
 				break;
-			}
-			catch(e){}
-		 } // end for
+			}catch(err){}
+		 }
 	}
 
 	xhr.onreadystatechange = ensureReadiness;
@@ -792,7 +1075,11 @@ CRUD.load = function(url, callback, parseJSON, method, data) {
 			if ( U.un(parseJSON) ){
 				callback(xhr.responseText);
 			}else{
-				callback(JSON.parse(xhr.responseText));
+				try{
+					callback(JSON.parse(xhr.responseText));
+				}catch(err){
+					callback({});
+				}
 			}
 		}
 	}
