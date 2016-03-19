@@ -37,7 +37,7 @@ function setUnderdogPath(path){
 }
 
 /**
- * @method Cleans CKEditor instances and then makes an ajax request and displays the response in an existant DOM object.
+ * @method Makes an ajax request and displats the response in the given DOM element.
  * @param  {String}   url      Url from which we obtain the data to be displayed.
  * @param  {Object}   el       DOM element into which we want to display the response.
  * @param  {Function} callback Callback function
@@ -45,33 +45,10 @@ function setUnderdogPath(path){
  */
 function loadIntoEl(url, el, callback) {
 	lockScreen();
-
-	var ckeditorTextarea = document.getElementsByClassName("ckeditor");
-	for (var i = 0; i < ckeditorTextarea.length; i++) {
-		var textareaId = ckeditorTextarea.eq(i).attr('id');
-		var myEditor = CKEDITOR.instances[textareaId];
-		if (myEditor) {
-			CKEDITOR.remove(myEditor);
-		}
-	};
-
-	loadDataIntoEl(url, el, callback);
-}
-
-/**
- * @method Makes an ajax request and displats the response in an existan DOM object.
- * @param  {String}   url      Url from which we obtain the data to be displayed.
- * @param  {Object}   el       DOM element into which we want to display the response.
- * @param  {Function} callback Callback function
- * @return {void}
- */
-function loadDataIntoEl(url, el, callback) {
 	CRUD.load(url, function(data){
-		el.html(data);
-		el.trigger('create');
+		el.innerHTML = data;
 		unlockScreen();
-		hideLoader();
-		if (typeof callback != 'undefined') {
+		if (!U.un(callback)) {
 			callback();
 		}
 	});
