@@ -19,12 +19,8 @@
     <main class="col-xs-12">
       <h1>Demo: Client side javascript plugin framework</h1>
       <p>
-        A first plugin is fired when document is loaded, it will print the list with the articles titles. When user clicks a title the content of the article is printed below.<br/>
-        When the content of an article is printed two other plugins are fired:<br/>
-        One that will add a textbox for searching words in the text (it will highlight matched words).<br/>
-        And another that will identify the word with more than 3 characters under the user's mouse and will show a tooltip.<br/>
-        This demo illustrates the article: <a href="https://cookinapps.io/2016/03/plugin-architecture-II-client-side-javascript-plugin-framework/">Plugin architecture II: Client side javascript plugin framework</a><br/>
-        The code of the demo can be downloaded <a href="https://github.com/webappsdk/underdog/tree/master/examples/client-side-plugin-framework">here</a>. This demo uses <a href="https://github.com/webappsdk/underdog/tree/master/js">underdog.js library</a>.
+        This demo will show how client side plugin framework works, it illustrates the article: <a href="https://cookinapps.io/2016/03/plugin-architecture-II-client-side-javascript-plugin-framework/">Plugin architecture II: Client side javascript plugin framework</a>. The code of the demo can be downloaded <a href="https://github.com/webappsdk/underdog/tree/master/examples/client-side-plugin-framework">here</a>. This demo uses <a href="https://github.com/webappsdk/underdog/tree/master/js">underdog.js library</a>.<br/><br/>
+        A first plugin is fired when document is loaded, it will print the list with the articles' titles. When user clicks a title the content of the article is printed below. When the content of an article is printed two other plugins are fired: One that will add a textbox for searching words in the text (it will highlight matched words), and another that will identify the word with more than 3 characters under the user's mouse and will show a tooltip.<br/>
       </p>
       <section id="demo-container" class="col-xs-12">
       </section>
@@ -32,10 +28,14 @@
     <footer class="col-xs-12 footer">
       cookinapps.io &copy; 2016
     </footer>
-    <script type="text/javascript" src="../../js/underdog.js"></script>
+    <!--<script type="text/javascript" src="../../js/underdog.js"></script>-->
+    <script type="text/javascript" src="/resources/lib/underdog/js/underdog.js"></script>
     <script>
+      // cache descriptor file
+      CH("session");
+      CH.parseObjects();
       // Initialize plugin handler.
-      PH.load("plugins/","session");
+      PH.init("plugins/");
     </script>
   </body>
 </html>

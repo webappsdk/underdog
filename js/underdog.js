@@ -196,28 +196,27 @@ U.loadjs = function(src, callback) {
 		  el.src = src;
 		  document.body.appendChild(el);
 		}else{
-			var fileref = document.createElement('script');
+			var script = document.createElement('script');
 	    var done = false;
-	    var head = document.getElementsByTagName("head")[0];
+	    var body = document.body;
 
-	    fileref.onload = fileref.onreadystatechange = function () {
+	    script.onload = script.onreadystatechange = function () {
         if (!done && (!this.readyState || this.readyState === "loaded" || this.readyState === "complete")) {
           done = true;
 
           callback();
 
           // Handle memory leak in IE
-          fileref.onload = fileref.onreadystatechange = null;
-          if (head && fileref.parentNode) {
-              head.removeChild(fileref);
+          script.onload = script.onreadystatechange = null;
+          if (body && script.parentNode) {
+              body.removeChild(script);
           }
         }
 	    };
 
-	    fileref.setAttribute("type", "text/javascript");
-	    fileref.setAttribute("src", src);
-
-	    head.appendChild(fileref);
+	    script.setAttribute("type", "text/javascript");
+	    script.setAttribute("src", src);
+			body.appendChild(script);
 		}
 	}
 };
@@ -438,7 +437,8 @@ Alert.yesno = function(message, callback) {
 };
 
 /**
- * @class Plugin Handler, load and fire plugins in the client side.
+ * @class Plugin Handler: Handles the lifecycle and communication
+ *        of client side plugins.
  */
 function PH(){};
 
@@ -455,17 +455,16 @@ PH.CACHED_CONFIGURATIONS_ID = "PH.configurations";
 PH.CACHED_RESOURCES_ID = "PH.resources";
 
 /**
- * Relative recap event-plugins file path.
- * This file contains the JSON called descriptor.
+ * Relative packaged event-plugins file path.
+ * The file contains the JSON called descriptor.
+ * The JSON will be use to load packaged plugins.
  * @type {String}
  */
 PH.EVENT_PLUGIN_JSON_FILE = "plugins.json";
 
 /**
  * Id of cached descriptor, the JSON containing
- * the pairs event-plugins. It will be used to know
- * what plugins should be run when an event
- * is fired.
+ * the pairs event-plugins.
  * @type {String}
  */
 PH.CACHED_DESCRIPTOR_ID = "PH.descriptor";
@@ -475,7 +474,36 @@ PH.CACHED_DESCRIPTOR_ID = "PH.descriptor";
  * PH.load function.
  * @type {String}
  */
-PH.LOAD_PH_AFTER_EVENT = "load-ph-after";
+PH.INIT_PH_AFTER_EVENT = "init-ph-after";
+
+
+/**
+ * In cache: Comments on cached variables.
+ *
+ * List of plugins configurations.
+ * Each plugin has its own configuration of properties
+ * like colors, ids or classes of DOM elements etc.
+ * @type {JSONObject}
+ * cache id: PH.configurations
+ *
+ * Resources of each plugin.
+ * A plugin resource can be a JSON object,
+ * a list of image paths. The translation of
+ * texts can be managed throw this object.
+ * @type {JSONObject}
+ * cache id: PH.resources
+ *
+ *
+ * Description of events and packaged plugins.
+ * JSON containing the pairs event-plugins.
+ * It will be used to know what plugins should
+ * be run when an event is fired. Contains only
+ * information about packaged plugins.
+ * @type {JSONObject}
+ * cache id: PH.descriptor
+ *
+ */
+
 
 /**
  * Root url where all the plugins are.
@@ -484,7 +512,9 @@ PH.LOAD_PH_AFTER_EVENT = "load-ph-after";
 PH.root = null;
 
 /**
- * List of events and plugins.
+ * List of events of added plugins. Is not the same
+ * as cached decriptor, events contain can contain events
+ * of not packaged plugins.
  * Example:
  * 		"load-ph-after" => [PluginA JSON, PluginB JSON].
  * @type {JSONObject}
@@ -492,29 +522,23 @@ PH.root = null;
 PH.events = {};
 
 /**
- * In cache:
- *
- * List of plugins configurations.
+ * List of plugins by plugin Ids.
+ * Example:
+ * 		"indexandprint.add-index" => PluginA
  * @type {JSONObject}
- * PH.configurations
- *
- * Description of events and plugins.
- * @type {JSONObject}
- * PH.descriptor
  */
+PH.plugins = {};
+
 
 /**
- * Load client plugins descriptor json with all the information
- * on when to fire plugins and if they need to be lazy loaded or
- * eager loaded.
+ * @method Initialize Plugin Handler: plugins configurations,
+ *         plugins resources, eager load some packaged plugins
+ *         and fire first event that indicates Plugin Handler
+ *         is initialized.
  * @param  {String} url Url of the json event file.
  * @return {void}
  */
-PH.load = function(url,cacheType){
-	// cache descriptor file
-	CH(cacheType);
-	CH.parseObjects();
-
+PH.init = function(url){
 	// url path where all plugins are.
 	PH.root = url;
 
@@ -535,21 +559,21 @@ PH.load = function(url,cacheType){
 		new Promise(function (resolve, reject) {
 			// loop throw descriptor file and load the eager load plugins.
 			for (var eventName in descriptorJSON){
-				if(eventName!=PH.LOAD_PH_AFTER_EVENT){
+				if(eventName!=PH.INIT_PH_AFTER_EVENT){
 					PH.loadPlugins(eventName,"eager");
 				}
 			}
 			resolve();
     }).finally(function(){
 			// fire the event that tells PH is loaded.
-			PH.fire(PH.LOAD_PH_AFTER_EVENT);
+			PH.fire(PH.INIT_PH_AFTER_EVENT);
 		});
 	};
 
 	// check if descriptor JSON is already cached.
+	// and if it is not cached, request it and cache it.
 	var descriptorJSON = CH.cache(PH.CACHED_DESCRIPTOR_ID);
 	if (U.un(descriptorJSON)){
-		// not cached, request it and cache it.
 		url += PH.EVENT_PLUGIN_JSON_FILE;
 		CRUD.loadJSON(url, function(descriptor){
 			CH.cache(PH.CACHED_DESCRIPTOR_ID,descriptor);
@@ -562,7 +586,8 @@ PH.load = function(url,cacheType){
 };
 
 /**
- * Load a client side plugin javascript file.
+ * @method Load client side packaged plugins
+ *         that need to be run on given event.
  * @param  {String} eventName [description]
  * @param  {String} loadType  null | lazy | eager
  * @return {[type]}           [description]
@@ -576,7 +601,7 @@ PH.loadPlugins = function(eventName,loadType,callback){
 	if (descriptor.hasOwnProperty(eventName)){
 		var plugins = descriptor[eventName];
 
-		// Load synchronously and callback once.
+		// Load plugins synchronously and callback once.
 		if(plugins.length > 0){
 			var recursiveLoad = function(plugins,loadType,callbackRL,i){
 				if (i==null){
@@ -584,8 +609,11 @@ PH.loadPlugins = function(eventName,loadType,callback){
 				}
 				if(plugins.length > i){
 					plugin = plugins[i];
-					if ( ( (plugin.hasOwnProperty("load") && plugin["load"] == loadType ) || (!plugin.hasOwnProperty("load") && loadType == "lazy") ) && plugin.hasOwnProperty("package") && plugin.hasOwnProperty("plugin")){
-						plugins[i].load = "done";
+					if ( ( (plugin.hasOwnProperty("load") && plugin["load"] == loadType ) || (!plugin.hasOwnProperty("load") && loadType == "lazy") )
+							&& plugin.hasOwnProperty("package")
+							&& plugin.hasOwnProperty("plugin")
+							&& !PH.plugins.hasOwnProperty(plugin["package"]+"."+plugin["plugin"])){
+
 						PH.loadPlugin(plugin,function(){
 							i++;
 							recursiveLoad(plugins, loadType, callbackRL, i);
@@ -610,18 +638,20 @@ PH.loadPlugins = function(eventName,loadType,callback){
 };
 
 /**
- * @method Load a client side plugin javascript file.
+ * @method Load a client side packaged plugin file
+ *         and its configuration.
  * @return {void}
  */
-PH.loadPlugin = function(plugin,callback){
-	PH.loadPluginConfiguration(plugin,function(){
-		var url = PH.root + plugin["package"] + "/client/" + plugin["plugin"] + ".js";
+PH.loadPlugin = function(pluginDescription,callback){
+	PH.loadPluginConfiguration(pluginDescription,function(){
+		var url = PH.root + pluginDescription["package"] + "/client/" + pluginDescription["plugin"] + ".js";
 		U.loadjs(url,callback);
 	});
 };
 
 /**
  * @method Adds a client side plugin into the Plugin Handler.
+ *         Adds its events and id to PH.events
  * @param  {JSONObject} plugin JSON Object with the plugin description.
  * @param  {JSONObject} plugin JSON Object with the plugin description.
  * @return {void}
@@ -633,35 +663,40 @@ PH.add = function(plugin, parameters){
 		// when it has to be run, it is run when added.
 		PH.wrappedRun(plugin,parameters,null);
 	}else{
-		// plugin is added to event array, and it will wait
-		// to be run until the event is fired.
+		// plugin id is added to events.
 		var pluginEvent = null;
 		for ( var i = 0; i < pluginEvents.length; i++ ){
 			pluginEvent = pluginEvents[i];
 			if ( U.un(PH.events[pluginEvent]) ){
 				PH.events[pluginEvent] = [];
 			}
-			PH.events[pluginEvent].push(plugin);
+			PH.events[pluginEvent].push(plugin.id);
+		}
+
+		// Add plugin, it will wait to be run
+		// until one of its events is fired.
+		if (!U.un(plugin.id)){
+			PH.plugins[plugin.id] = plugin;
 		}
 	}
 };
 
 /**
- * @method retrieve plugin configuration JSON.
+ * @method Retrieve plugin configuration JSON.
  * @param  {JSONObject}   plugin   Plugin package and name.
  * @param  {Function} callback Callback function to call after configuration is retrieved.
  * @return {void}
  */
-PH.loadPluginConfiguration = function(plugin,callback){
+PH.loadPluginConfiguration = function(pluginDescription,callback){
 	// get plugin configuration
 	// check if configuration json is already cached
 	var configurations = CH.cache(PH.CACHED_CONFIGURATIONS_ID);
-	var key = plugin["package"] + "." + plugin["plugin"];
+	var key = pluginDescription["package"] + "." + pluginDescription["plugin"];
 	if (configurations.hasOwnProperty(key)){
-		callback(plugin);
+		callback(pluginDescription);
 	}else{
 		// configuration is not cached request it and cache it.
-		var url = PH.root + "/" + plugin["package"] + "/configuration.json";
+		var url = PH.root + "/" + pluginDescription["package"] + "/configuration.json";
 		CRUD.loadJSON(url, function(configuration){
 			configurations[key] = configuration;
 			CH.cache(PH.CACHED_CONFIGURATIONS_ID, configurations);
@@ -673,19 +708,23 @@ PH.loadPluginConfiguration = function(plugin,callback){
 /**
  * @method Fire an event that can potentialy run plugins.
  * @param  {String}   eventName	Name of the event.
- * @param  {Function} callback	Callback function.
  * @param  {Array}   parameters Array with data we want to pass to the plugin.
+ * @param  {Function} callback	Callback function.
  * @return {void}
  */
 PH.fire = function(eventName, parameters, callback){
-	// lazy load and run the plugins not loaded yet.
+	// lazy load the plugins not loaded yet.
 	PH.loadPlugins(eventName,"lazy",function(){
 		if (PH.events.hasOwnProperty(eventName)){
-			var plugins = PH.events[eventName];
+			var pluginIds = PH.events[eventName];
 			var plugin = null;
-			for ( var i = 0; i < plugins.length; i++ ){
-				plugin = plugins[i];
-				PH.wrappedRun(plugin, parameters, eventName, callback);
+
+			// run plugins.
+			for ( var i = 0; i < pluginIds.length; i++ ){
+				plugin = PH.getPluginById(pluginIds[i]);
+				if (plugin!=null){
+					PH.wrappedRun(plugin, parameters, eventName, callback);
+				}
 			}
 		}else{
 			// call callback function.
@@ -697,7 +736,7 @@ PH.fire = function(eventName, parameters, callback){
 };
 
 /**
- * @method Fires events before, during and after the plugin run. Uses bluebird.js library.
+ * @method Fires events before, during and after the plugin run.
  * @param  {JSONObject} plugin plugin to wrap.
  * @return {void}
  */
@@ -728,7 +767,7 @@ PH.wrappedRun = function(plugin, parameters, eventName, callback){
 		},function(reason){
 			// call callback function.
 			if (!U.un(callback)){
-				callback({"success":false,"message":reason});
+				callback({"success":false,"message":reason,"data":{"pluginid":plugin.id}});
 			}
 		}).finally(function(){
 			// fire after event.
@@ -738,11 +777,99 @@ PH.wrappedRun = function(plugin, parameters, eventName, callback){
 };
 
 /**
- * Get resource directory path of a plugin
+ * @function Returns a loaded plugin with the given id
+ * from the PH.plugins object. Returns null if
+ * no plugin found with the given id.
+ * @param  {String} id	Id of the plugin we want.
+ * @return {JSONObject}	Plugin or null.
+ */
+PH.getPluginById = function(id){
+	if(PH.plugins.hasOwnProperty(id)){
+		return PH.plugins[id];
+	}
+	return null;
+};
+
+/**
+ * @method Removes given plugin or plugin with given id.
+ * @param  {String} id Id of the plugin to remove.
+ * @return {void}
+ */
+PH.remove = function(obj){
+	var id = null;
+	if (U.type(obj) == "object"){
+		id = obj.id;
+	}
+	if (U.type(id)=="string"){
+		if(PH.plugins.hasOwnProperty(id)){
+			var plugin = PH.plugins[id];
+			var events = plugin.events;
+			var pluginEvent = null;
+			for (var i = 0; i < events.length; i++){
+				pluginEvent = events[i];
+				var index = PH.events.indexOf(pluginEvent);
+				if (index > -1) {
+					array.splice(index, 1);
+				}
+			}
+			delete PH.plugins[id];
+			return;
+		}
+	}
+};
+
+/**
+ * @method Communicate with plugins via the Plugin Handler.
+ * The message will be sent to the plugins using the
+ * destinations plugins Ids.
+ * A message can be sent to all plugins letting the toIds
+ * parameter null.
+ * Destination plugins use the onMessage listener function
+ * to retrieve the messages.
+ * @param  {Object} message   Message to communicate.
+ * @param  {Object} _from			Author of the message, it can be another plugin,
+ *                          	a person ...
+ * @param  {Array} toIds     	Ids of the plugins we want to adress the message,
+ *                            null if we don't know the plugin or we want to
+ *                            adress the message to all plugins.
+ * @param {Function} callback	Optional Callback function.
+ * @return {void}
+ */
+PH.sendMessage = function(message,_from,toIds,callback){
+	if (U.un(toIds)){
+		// send message to all plugins.
+		var plugin = null;
+		for (var id in PH.plugins){
+			plugin = PH.plugins[id];
+			if(typeof plugin.onMessage == "function"){
+				plugin.onMessage(message,_from,callback);
+			}
+		}
+	}else{
+		// send message to the plugins with the given ids.
+		// Plugins can use the onMessage listener function
+		// to retrieve the message.
+		var plugin = null;
+		for (var i = 0; i < toIds.length; i++){
+			plugin = PH.getPluginById[toIds[i]];
+			if (plugin!=null){
+				plugin.onMessage(message,_from,callback);
+			}
+		}
+	}
+};
+
+/**
+ * @function Get resource directory path of a plugin
  * @return {String} Resource directory path.
  */
 PH.getResourcePath = function(plugin){
-	return PH.root + "/" + plugin.package + "/resources/";
+	try{
+		var packageAndPlugin = plugin.id.split(".");
+		return PH.root + "/" + packageAndPlugin[0] + "/resources/";
+	}catch(err){
+		return "";
+	}
 };
 
 /**

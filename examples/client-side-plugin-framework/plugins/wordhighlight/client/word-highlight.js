@@ -29,7 +29,6 @@ PH.add({
     }
     me.highlightWord({"srcElement":searchEl});
    }
-
  },
  "highlightWord" : function(e){
    // gets value from input and finds words that match this value and higlights them.

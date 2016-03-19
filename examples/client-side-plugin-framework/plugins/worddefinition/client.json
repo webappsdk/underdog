@@ -1,5 +1,1 @@
-{
- "worddefinition.word-tooltip" : {
-   "events" : ["load-text-after"]
-  }
-}
+{"load-text-after" : ["worddefinition.word-tooltip"]}

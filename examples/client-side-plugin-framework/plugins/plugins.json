@@ -1,5 +1,3 @@
-{"load-ph-after":
-  [{"package":"indexandprint","plugin":"add-index"}],
- "load-text-after":
-  [{"package":"wordhighlight","plugin":"word-highlight"}, {"package":"worddefinition","plugin":"word-tooltip"}]
+{"init-ph-after":[{"package":"indexandprint","plugin":"add-index"}],
+ "load-text-after":[{"package":"wordhighlight","plugin":"word-highlight"}, {"package":"worddefinition","plugin":"word-tooltip"}]
 }

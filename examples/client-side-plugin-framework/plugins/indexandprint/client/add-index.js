@@ -3,7 +3,6 @@
  */
 PH.add({
  "id" : "indexandprint.add-index",
- "package" : "indexandprint",
  "articleContentContainer" : null,
  "resourcesPath":null,
  "run" : function(params,configuration){
