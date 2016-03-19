@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content="Example of javascript event driven plugin framework."/>
+    <meta name="title" content="Demo: Client side javascript plugin framework." />
+    <meta name="keywords" content="plugin architecture, event driven plugin framework, javascript plugin framework, client side plugin framework, javascript" />
+		<meta name="author" content="CookinApps"><meta name="twitter:site" content="@cookinapps">
+		<title>Demo: Client side javascript plugin framework Web application development in C++ and Javascript</title>
+    <link href="/favicon.ico" rel="icon" type="image/x-icon"/>
+    <link rel="me" href="/about" />
+    <link rel="stylesheet" type="text/css" href="/resources/css/cookinapps.min.css">
+  </head>
+  <body class="container">
+    <header id="header" class="col-xs-12">
+      <h1 class="title"><a href="/">Web application development in C++ and Javascript</a></h1>
+    </header>
+    <main class="col-xs-12">
+      <h1>Demo: Client side javascript plugin framework</h1>
+      <p>
+        A first plugin is fired when document is loaded, it will print the list with the articles titles. When user clicks a title the content of the article is printed below.<br/>
+        When the content of an article is printed two other plugins are fired:<br/>
+        One that will add a textbox for searching words in the text (it will highlight matched words).<br/>
+        And another that will identify the word with more than 3 characters under the user's mouse and will show a tooltip.<br/>
+        This demo illustrates the article: <a href="/2016/03/plugin-architecture-II-client-side-javascript-plugin-framework/">Plugin architecture II: Client side javascript plugin framework</a><br/>
+        The code of the demo can be downloaded <a href="https://github.com/webappsdk/underdog/tree/master/demo/client-side-plugin-framework">here</a>. This demo uses <a href="https://github.com/webappsdk/underdog/tree/master/js">underdog.js library</a>.
+      </p>
+      <section id="demo-container" class="col-xs-12">
+      </section>
+    </main>
+    <footer class="col-xs-12 footer">
+      cookinapps.io &copy; 2016
+    </footer>
+    <script type="text/javascript" src="../../js/underdog.js"></script>
+    <script>
+      // Initialize plugin handler.
+      PH.load("plugins/","session");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "Word highlight",
+  "version": "1.0.0",
+  "default_locale": "en",
+  "description": "Highlight the words of a text based on a value taped in an input text box by the user.",
+  "icon": "",
+  "author": "cookinapps.io",
+  "homepage_url": "https://cookinapps.io/",
+  "store_url": "https://cookinapps.io/store/plugins/wordhighlight",
+  "repository": "https://cookinapps.io/repository/plugins/wordhighlight",
+  "requires":[{"name":"qwest","repository":"https://github.com/pyrsmk/qwest.git"}],
+  "requires_other_plugin": [],
+}

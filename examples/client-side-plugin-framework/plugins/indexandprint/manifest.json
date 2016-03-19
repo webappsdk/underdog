@@ -1,0 +1,13 @@
+{
+  "name": "Index and print",
+  "version": "1.0.0",
+  "default_locale": "en",
+  "description": "Print an index of contents and when clicked print the correspondent content.",
+  "icon": "",
+  "author": "cookinapps.io",
+  "homepage_url": "https://cookinapps.io/",
+  "store_url": "https://cookinapps.io/store/plugins/indexandprint",
+  "repository": "https://cookinapps.io/repository/plugins/indexandprint",
+  "requires":[{"name":"qwest","repository":"https://github.com/pyrsmk/qwest.git"}],
+  "requires_other_plugin": [],
+}

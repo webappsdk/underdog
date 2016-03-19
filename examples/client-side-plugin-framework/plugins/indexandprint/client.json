@@ -1,0 +1,5 @@
+{
+ "indexandprint.add-index" : {
+   "events" : ["load-ph-after"]
+  }
+}
