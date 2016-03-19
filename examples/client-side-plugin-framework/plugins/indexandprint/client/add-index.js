@@ -14,7 +14,7 @@ PH.add({
 
      this.resourcesPath = PH.getResourcePath(this);
 
-     CRUD.loadJSON(this.resourcesPath + "/json/articlesindex.json",function(articlesindex) {
+     CRUD.loadJSON(this.resourcesPath + "json/articlesindex.json",function(articlesindex) {
 
         var container = document.getElementById(configuration["mainContainerId"]["value"]);
 
@@ -26,7 +26,7 @@ PH.add({
           for (var i = 0; i < articlesindex.length; i++){
             articleReference = articlesindex[i];
             if(articleReference.hasOwnProperty("title") && articleReference.hasOwnProperty("url")){
-              html += "<li content-url=\"" + me.resourcesPath + "/" + articleReference["url"] + "\" onmouseover=\"this.style.textDecoration='underline';\" class=\"article-reference\" onmouseout=\"this.style.textDecoration='none';\" style=\"color:#0000ff;cursor:pointer;\">" + articleReference["title"] + "</li>"
+              html += "<li content-url=\"" + me.resourcesPath + articleReference["url"] + "\" onmouseover=\"this.style.textDecoration='underline';\" class=\"article-reference\" onmouseout=\"this.style.textDecoration='none';\" style=\"color:#0000ff;cursor:pointer;\">" + articleReference["title"] + "</li>"
             }
           }
 

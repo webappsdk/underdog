@@ -742,7 +742,7 @@ PH.wrappedRun = function(plugin, parameters, eventName, callback){
  * @return {String} Resource directory path.
  */
 PH.getResourcePath = function(plugin){
-	return PH.root + "/" + plugin.package + "/client/resources/";
+	return PH.root + "/" + plugin.package + "/resources/";
 };
 
 /**
