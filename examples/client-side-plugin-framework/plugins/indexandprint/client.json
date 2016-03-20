@@ -1,1 +1,1 @@
-{"init-ph-after":["indexandprint.add-index"]}
+{"init-ph-after":[{"package":"indexandprint","plugin":"add-index"}]}

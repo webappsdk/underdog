@@ -1,1 +1,1 @@
-{"load-text-after" : ["worddefinition.word-tooltip"]}
+{"load-text-after" : [{"package":"worddefinition","plugin":"word-tooltip"}]}

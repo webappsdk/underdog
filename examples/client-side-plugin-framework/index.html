@@ -28,12 +28,13 @@
     <footer class="col-xs-12 footer">
       cookinapps.io &copy; 2016
     </footer>
-    <!--<script type="text/javascript" src="../../js/underdog.js"></script>-->
-    <script type="text/javascript" src="/resources/lib/underdog/js/underdog.js"></script>
+    <script type="text/javascript" src="../../js/underdog.js"></script>
     <script>
-      // cache descriptor file
-      CH("session");
-      CH.parseObjects();
+      // Plugin handler can use cache for better performance,
+      // so it is recommended to init cache before initializing
+      // the Plugin handler. Do not initialize cache if you don't want
+      // to use it.
+      CH.init("session");
       // Initialize plugin handler.
       PH.init("plugins/");
     </script>
