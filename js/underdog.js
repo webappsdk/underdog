@@ -21,7 +21,7 @@
   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   * SOFTWARE.
   *
-  * Javascript library for client side plugin handling,
+  * Javascript library for client side plugin handling, cache handling
   * loading dynamic content, messages and alerts.
   *
   */
@@ -37,7 +37,7 @@ function setUnderdogPath(path){
 }
 
 /**
- * @method Makes an ajax request and displats the response in the given DOM element.
+ * @method Makes an ajax request and appends the response in the given DOM element.
  * @param  {String}   url      Url from which we obtain the data to be displayed.
  * @param  {Object}   el       DOM element into which we want to display the response.
  * @param  {Function} callback Callback function
@@ -156,7 +156,7 @@ U.un = function(value){
 };
 
 /**
- * Escape RegExp especial characters,
+ * @function Escape RegExp especial characters,
  * for example in a RegExp + or * has a meaning
  * then they will be escaped \+ and \* .
  * @param  {String} str String to escape characters.
@@ -186,38 +186,32 @@ U.type = function(obj) {
 /**
  * @method Load a javascript file.
  * @param  {String} src Path of the javascript file.
+ * @param	 {Function} callcback	Callback function called when file is loaded.
  * @return {void}
  */
 U.loadjs = function(src, callback) {
 	if (!U.un(src)){
-		if (U.un(callback)){
-		  var el = document.createElement("script");
-		  el.type = "application/javascript";
-		  el.src = src;
-		  document.body.appendChild(el);
-		}else{
-			var script = document.createElement('script');
+		var el = document.createElement('script');
+		var body = document.body;
+		if (!U.un(callback)){
 	    var done = false;
-	    var body = document.body;
-
-	    script.onload = script.onreadystatechange = function () {
+	    el.onload = el.onreadystatechange = function () {
         if (!done && (!this.readyState || this.readyState === "loaded" || this.readyState === "complete")) {
           done = true;
 
           callback();
 
           // Handle memory leak in IE
-          script.onload = script.onreadystatechange = null;
-          if (body && script.parentNode) {
-              body.removeChild(script);
+          el.onload = el.onreadystatechange = null;
+          if (body && el.parentNode) {
+              body.removeChild(el);
           }
         }
 	    };
-
-	    script.setAttribute("type", "text/javascript");
-	    script.setAttribute("src", src);
-			body.appendChild(script);
 		}
+		el.setAttribute("type", "text/javascript");
+		el.setAttribute("src", src);
+		body.appendChild(el);
 	}
 };
 
@@ -257,7 +251,10 @@ U.callFunctions = function(fns,param){
 	for (var i = 0; i < fns.length; i++){
 		fn = fns[i];
 		if (typeof fn == "function"){
-			fn(param);
+			new Promise(function (resolve, reject) {
+				fn(param);
+				resolve();
+			});
 		}else{
 			console.alert("Only functions can be called.");
 		}
@@ -436,6 +433,131 @@ Alert.yesno = function(message, callback) {
 	callback(r);
 };
 
+
+/**
+ * @class Cache Handler class.
+ *        Manage the cache of the application.
+ *        Can use HTML local storage or session storage.
+ *        It is not limited to string storage,
+ *        it can store objects.
+ */
+function CH(){};
+
+/**
+ * @method Initialize Cache Handler setting
+ *         the type of storage: none, session or local.
+ * @param  {String} storage none, session or local
+ * @return {void}
+ */
+CH.init = function(storage){
+	if (storage == "session"){
+		CH.storage = window.sessionStorage;
+	}else if (storage == "local"){
+		CH.storage = window.localStorage;
+	}
+
+	// set storage and max value for later recovery.
+	CH.storage["CH_storage"] = storage;
+
+	if (storage == "session" || storage == "local"){
+		// parse the existant stringified objects in the selected
+		// storage to objects.
+		CH.parseObjects();
+	}
+};
+
+/**
+ * Object where to store the cached data:
+ * window.localStorage: stores data with no expiration date.
+ * window.sessionStorage: stores data for one session (data is lost when the browser tab is closed).
+ * new created: only valid until window is reloaded.
+ * @type {Object}
+ */
+CH.storage = {};
+
+/**
+ * Object where store the objects cached.
+ * because session or local storage can only
+ * store strings.
+ * @type {Object}
+ */
+CH.objStorage = {};
+
+/**
+ * max Size in KB of the data to cache.
+ * @type {Number}
+ */
+CH.maxSize = 1024;
+
+/**
+ * Insert or retrieve cached data.
+ * @param  {String} id      Identifier of the cached data.
+ * @param  {Object} content if Object data to cache, if null, it means we retrieve data.
+ * @return {Object|void}		Data cached or void if insertion operation.
+ */
+CH.cache = function(id,content){
+	if(content == null){
+		// retrieve content
+		var obj = CH.objStorage[id];
+		if (U.un(obj)){
+			// content is a string
+			return CH.storage[id];
+		}else{
+			// content is a JSONObject or a JSONArray.
+			return CH.objStorage[id];
+		}
+	}else{
+		// cache content
+		var type = U.type(content);
+		if (type == "object" || type == "array"){
+			// content is a JSONObject or a JSONArray
+			// store content in a temporary store for
+			// quick access and a stringified version
+			// in the more long term storage for later
+			// recovery.
+			CH.objStorage[id] = content;
+			new Promise(function (resolve, reject) {
+				CH.storage[id] = JSON.stringify(content);
+				resolve();
+	    });
+		}else{
+			// content is a string, store it in the
+			// long term storage.
+			CH.storage[id] = content;
+		}
+	}
+};
+
+/**
+ * Clear cache, remove all cached data or just one cached item.
+ * @param  {String} id Identifier of data to cache.
+ * @return {void}
+ */
+CH.clear = function(id){
+	if(id == null){
+		// remove all cached data.
+		CH.storage = {};
+		CH.objStorage = {};
+	}else{
+		// remove one cached item with a given id
+		delete CH.storage[id];
+		delete CH.objStorage[id];
+	}
+};
+
+/**
+ * Parse JSONObject and JSONArray to objStorage.
+ * Local and session storage only stores strings.
+ * @return {void}
+ */
+CH.parseObjects = function(){
+	for ( var key in CH.storage ){
+		try{
+			CH.objStorage[key] = JSON.parse(CH.storage[key]);
+		}catch(err){}
+	}
+};
+
 /**
  * @class Plugin Handler: Handles the lifecycle and communication
  *        of client side plugins.
@@ -528,7 +650,6 @@ PH.events = {};
  * @type {JSONObject}
  */
 PH.plugins = {};
-
 
 /**
  * @method Initialize Plugin Handler: plugins configurations,
@@ -871,253 +992,6 @@ PH.getResourcePath = function(plugin){
 		return "";
 	}
 };
-
-/**
- * @class Editor Manager, load and show diferent type of editors (forms for editing text, images...).
- */
-function EM(){};
-
-/**
- * List of editors.
- * @type {JSONObject}
- */
-EM.editors = {};
-
-/**
- * Editor that is being used and rendered in the editor popup.
- * @type {JSONObject}
- */
-EM.activeEditor = null;
-
-/**
- * Popup element in the DOM that contains the editors.
- * @type {DOMElement}
- */
-EM.popup = null;
-
-/**
- * Element in the popup that will contain the rendered html of the editor.
- * @type {DOMElement}
- */
-EM.popupBody = null;
-
-/**
- * Field that will be edited by the editor.
- * @type {JSONObject}
- */
-EM.field = null;
-
-/**
- * @method Loads the client side part of an editor if it is not already loaded.
- * @param  {String} name Name of the editor.
- * @param  {JSONObject} field Field to be edited.
- * @return {void}
- */
-EM.load = function(id,field){
-	EM.field = field;
-	if (U.un(EM.editors[id])){
-		U.loadjs("/editor/" + id + ".js");
-	}else{
-		EM.render(EM.editors[id]);
-	}
-};
-
-/**
- * @method Adds a client side editor to the Editor Manager.
- * @param  {JSONObject} editor Editor JSON Object.
- * @param  {JSONObject} field Field to be edited.
- * @return {void}
- */
-EM.add = function(editor,field){
-	if (field!=null){
-		EM.field = field;
-	}
-	EM.editors[editor.id] = editor;
-	EM.render(editor);
-};
-
-/**
- * @method Renders the editor in the editor popup in the DOM.
- * @param  {JSONObject} editor Editor JSON Object.
- * @param  {JSONObject} field Field to be edited.
- * @return {void}
- */
-EM.render = function(editor,field){
-	if (field!=null){
-		EM.field = field;
-	}
-	// if the editor popup is not rendered then create one and render it, if it is already rendered, use it.
-	if (EM.popup == null){
-		var popup = document.createElement("div");
-		popup.style.position="absolute";
-		popup.style.width="500px";
-		popup.style.height="500px";
-		popup.style.top="0px";
-		popup.style["background-color"]="#fff";
-		popup.style.border="2px solid #000";
-		popup.style.display = "none";
-		//popup.style.cssText +=';'+ cssString;
-		EM.popup = popup;
-		document.body.appendChild(popup);
-
-		var popupBody = document.createElement("div");
-		popup.appendChild(popupBody);
-		EM.popupBody = popupBody;
-
-		var popupButtons = document.createElement("div");
-		popupButtons.innerHTML = "<a href=\"javascript:EM.ok();\">[OK]</a> <a href=\"javascript:EM.remove();\">[Cancel]</a>";
-		popup.appendChild(popupButtons);
-	}
-	EM.popupBody.innerHTML = editor.getHTML(EM.field);
-	editor.run();
-	EM.activeEditor = editor;
-	EM.popup.style.display = "inline";
-};
-
-EM.formTemplate = function(url,data,callback){
-	CRUD.load(url, function(templateHtml){
-		var html = "";
-		var obj = null;
-		for (var key in data) {
-	    obj = data[key];
-			var templateHtmlCopy = templateHtml;
-			for (var key in obj) {
-			  templateHtmlCopy = templateHtmlCopy.replace(new RegExp("{{" + key + "}}", "g"), obj[key]);
-			}
-			html += templateHtmlCopy;
-		}
-		callback(html);
-	});
-};
-
-/**
- * @method Removes a rendered editor in the DOM and hides the popup.
- * @param  {JSONObject} editor Editor JSON Object.
- * @return {void}
- */
-EM.remove = function(){
-	EM.popup.style.display = "none";
-	EM.popupBody.innerHTML = "";
-	EM.field = null;
-	EM.activeEditor = null;
-};
-
-/**
- * @method Retrieves editor output and set values to the field.
- * @return {void}
- */
-EM.ok = function(){
-	EM.activeEditor.setFieldValue(EM.field);
-	EM.remove();
-};
-
-/**
- * @class Cache Handler class.
- *        Manage the cache of the application.
- *        Can use HTML local storage or session storage.
- */
-function CH(storage,maxSize){
-	if (storage == 'session'){
-		CH.storage = window.sessionStorage;
-	}else if (storage == 'local'){
-		CH.storage = window.localStorage;
-	}
-	// set storage and max value for later recovery.
-	CH.storage["CH_storage"] = storage;
-	CH.storage["CH_maxSize"] = maxSize;
-};
-
-/**
- * Object where to store the cached data:
- * window.localStorage: stores data with no expiration date.
- * window.sessionStorage: stores data for one session (data is lost when the browser tab is closed).
- * new created: only valid until window is reloaded.
- * @type {Object}
- */
-CH.storage = {};
-
-/**
- * Object where store the objects cached.
- * because session or local storage can only
- * store strings.
- * @type {Object}
- */
-CH.objStorage = {};
-
-/**
- * max Size in KB of the data to cache.
- * @type {Number}
- */
-CH.maxSize = 1024;
-
-/**
- * Insert or retrieve cached data.
- * @param  {String} id      Identifier of the cached data.
- * @param  {Object} content if Object data to cache, if null, it means we retrieve data.
- * @return {Object|void}		Data cached or void if insertion operation.
- */
-CH.cache = function(id,content){
-	if(content == null){
-		// retrieve content
-		var obj = CH.objStorage[id];
-		if (U.un(obj)){
-			// content is a string
-			return CH.storage[id];
-		}else{
-			// content is a JSONObject or a JSONArray.
-			return CH.objStorage[id];
-		}
-	}else{
-		// cache content
-		var type = U.type(content);
-		if (type == "object" || type == "array"){
-			// content is a JSONObject or a JSONArray
-			// store content in a temporary store for
-			// quick access and a stringified version
-			// in the more long term storage for later
-			// recovery.
-			CH.objStorage[id] = content;
-			new Promise(function (resolve, reject) {
-				CH.storage[id] = JSON.stringify(content);
-				resolve();
-	    });
-		}else{
-			// content is a string, store it in the
-			// long term storage.
-			CH.storage[id] = content;
-		}
-	}
-};
-
-/**
- * Clear cache, remove all cached data or just one cached item.
- * @param  {String} id Identifier of data to cache.
- * @return {void}
- */
-CH.clear = function(id){
-	if(id == null){
-		// remove all cached data.
-		CH.storage = {};
-		CH.objStorage = {};
-	}else{
-		// remove one cached item with a given id
-		delete CH.storage[id];
-		delete CH.objStorage[id];
-	}
-};
-
-/**
- * Parse JSONObject and JSONArray to objStorage.
- * Local and session storage only stores strings.
- * @return {void}
- */
-CH.parseObjects = function(){
-	for ( var key in CH.storage ){
-		try{
-			CH.objStorage[key] = JSON.parse(CH.storage[key]);
-		}catch(err){}
-	}
-}
 
 /**
   * @class Class for making ajax requests.
