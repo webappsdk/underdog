@@ -1,1 +1,1 @@
-{"load-text-after":[{"package":"wordhighlight","plugin":"word-highlight"}]}
+{"load-text-after":{"wordhighlight.word-highlight":{}}}
