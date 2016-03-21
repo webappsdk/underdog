@@ -16,7 +16,11 @@ PH.add(function(){
     articleContentContainer.innerHTML = articleContentContainer.innerHTML.replace(new RegExp("<mark>", "g"), "");
     articleContentContainer.innerHTML = articleContentContainer.innerHTML.replace(new RegExp("</mark>", "g"), "");
     if (query != ""){
-      articleContentContainer.innerHTML = articleContentContainer.innerHTML.replace(new RegExp(U.escapeSpecialCharsRegExp(query), "g"), "<mark>" + query + "</mark>");
+      var pEls = articleContentContainer.getElementsByTagName("p");
+      for (var i = 0; i < pEls.length; i++){
+        var el = pEls[i];
+        el.innerHTML = el.innerHTML.replace(new RegExp(U.escapeSpecialCharsRegExp(query), "g"), "<mark>" + query + "</mark>");
+      }
     }
   };
 
