@@ -103,8 +103,8 @@ U.loadjs = function(src, callback) {
 
 /**
  * @method Creates a finally method for promises that
- *         will be called on fullfill and on regection.
- * @param  {Function} handler Function to call on fullfill and on regection.
+ *         will be called on fullfill and on rejection.
+ * @param  {Function} handler Function to call on fullfill and on rejection.
  * @return {void}
  */
  Promise.prototype.finally = function(handler) {
@@ -300,8 +300,33 @@ PH.INIT_PH_AFTER_EVENT = "init-ph-after";
  * Error message when plugin.run() fails.
  * @type {Object}
  */
-PH.ERROR_PLUGIN_EXECUTION = "error_plugin_execution";
+PH.PLUGIN_EXECUTION_FAILURE_MESSAGE = "plugin_execution_failure";
 
+/**
+ * Name of the plugin event to fire when a plugin
+ * execution fail.
+ * @type {String}
+ */
+PH.PLUGIN_EXECUTION_FAILURE_EVENT = "plugin-execution-failure";
+
+/**
+ * Name of the plugin event that will be fired on plugin
+ * configuration load.
+ * @type {String}
+ */
+PH.PLUGIN_CONFIGURATION_LOAD_EVENT = "plugin-configuration-load";
+
+/**
+ * Name of the plugin event that will be fired on plugin add.
+ * @type {String}
+ */
+PH.PLUGIN_ADD_EVENT = "plugin-add";
+
+/**
+ * Name of the plugin event thet will be fired on plugin remove.
+ * @type {String}
+ */
+PH.PLUGIN_REMOVE_EVENT = "plugin-remove";
 
 /**
  * In cache: Comments on cached variables.
@@ -439,13 +464,30 @@ PH.init = function(){
 		var roots = CH.cache(PH.CACHED_ROOTS_ID);
 		if (U.un(descriptorJSON) || U.un(roots)){
 			var i = 0;
-			loadDescriptors(i,{},{},initialPluginLoad);
+			loadDescriptors(i,{},{"all":initArguments},initialPluginLoad);
 		}else{
 			// decriptor is cached, eager load some packaged plugins.
 			initialPluginLoad(descriptorJSON);
 		}
 	}
 };
+
+/**
+ * @method Reset Plugin Handler, clear all cached items
+ * and initialize Plugin Handler again.
+ * @return {void}
+ */
+PH.reset = function(){
+	var roots = CH.cache(PH.CACHED_ROOTS_ID);
+	if(roots.hasOwnProperty("all")){
+		var initArguments = roots["all"];
+		CH.clear(PH.CACHED_CONFIGURATIONS_ID);
+		CH.clear(PH.CACHED_RESOURCES_ID);
+		CH.clear(PH.CACHED_DESCRIPTOR_ID);
+		CH.clear(PH.CACHED_ROOTS_ID);
+		PH.init.apply( this, initArguments );
+	}
+}
 
 /**
  * @method Load client side packaged plugins that will be run on given event.
@@ -506,9 +548,11 @@ PH.loadPlugins = function(eventName,loadType,callback){
 PH.loadPlugin = function(pluginId,callback){
 	var pluginCoordinates = PH.pluginCoordinates(pluginId);
 	if (pluginCoordinates != null){
-		PH.loadPluginConfiguration(pluginCoordinates,function(){
-			var url = CH.cache(PH.CACHED_ROOTS_ID)[pluginId] + pluginCoordinates["package"] + "/client/" + pluginCoordinates["pluginPath"] + ".js";
-			U.loadjs(url,callback);
+		PH.loadPluginConfiguration(pluginCoordinates,function(configuration){
+			PH.fire(PH.PLUGIN_CONFIGURATION_LOAD_EVENT+"-after",{"pluginId":pluginId,"configuration":configuration},function(){
+				var url = CH.cache(PH.CACHED_ROOTS_ID)[pluginId] + pluginCoordinates["package"] + "/client/" + pluginCoordinates["pluginPath"] + ".js";
+				U.loadjs(url,callback);
+			});
 		});
 	}
 };
@@ -557,13 +601,16 @@ PH.add = function(plugin, parameters){
 		plugin.call = PH._call;
 	}
 
+	var pluginAddMessage = {"plugin":plugin,"parameters":parameters};
 	var pluginEvents = plugin.events;
 	if ( U.un(pluginEvents) || pluginEvents.length == 0 ){
 		// when a plugin is added without specifying the events
 		// when it has to be run, it is run when added.
 		addPluginMembers();
-		PH.wrappedRun(plugin,parameters,null,function(){
-			plugin.remove();
+		PH.fire(PH.PLUGIN_ADD_EVENT+"-after",pluginAddMessage,function(){
+			PH.wrappedRun(plugin,parameters,null,function(){
+				plugin.remove();
+			});
 		});
 	}else{
 		if (!U.un(plugin.id)){
@@ -580,6 +627,7 @@ PH.add = function(plugin, parameters){
 			// until one of its events is fired.
 			addPluginMembers();
 			PH.plugins[plugin.id] = plugin;
+			PH.fire(PH.PLUGIN_ADD_EVENT+"-after",pluginAddMessage);
 		}
 	}
 };
@@ -641,17 +689,17 @@ PH.wrappedRun = function(plugin, parameters, eventName, callback){
 			}catch(err){
 				if(typeof plugin["onFailure"] == "function"){
 					try{
-						var error = plugin["onFailure"](PH.ERROR_PLUGIN_EXECUTION,parameters,eventName);
+						var error = plugin["onFailure"](PH.PLUGIN_EXECUTION_FAILURE_MESSAGE,parameters,eventName);
 						if(U.un(error)){
-							reject(PH.ERROR_PLUGIN_EXECUTION);
+							reject(PH.PLUGIN_EXECUTION_FAILURE_MESSAGE);
 						}else{
 							reject(error);
 						}
 					}catch(err){
-						reject(PH.ERROR_PLUGIN_EXECUTION);
+						reject(PH.PLUGIN_EXECUTION_FAILURE_MESSAGE);
 					}
 				}else{
-					reject(PH.ERROR_PLUGIN_EXECUTION);
+					reject(PH.PLUGIN_EXECUTION_FAILURE_MESSAGE);
 				}
 			}
     }).then(function(value){
@@ -664,9 +712,15 @@ PH.wrappedRun = function(plugin, parameters, eventName, callback){
 			// so remove it si it is not executed again.
 			plugin.remove();
 
+			var failureMessage = {"success":false,"message":reason,"data":{"pluginId":plugin.id}};
+
 			if (callback){
-				callback({"success":false,"message":reason,"data":{"pluginid":plugin.id}});
+				callback(failureMessage);
 			}
+
+			// fire execution failure event
+			PH.fire(PH.PLUGIN_EXECUTION_FAILURE_EVENT,failureMessage);
+
 		}).finally(function(){
 			// fire after event.
 			PH.fire(plugin.id + "-after", parameters);
@@ -776,39 +830,54 @@ PH._getResourcePath = function(){
  */
 PH._remove = function(){
 
-	if(CH.cache(PH.CACHED_ROOTS_ID).hasOwnProperty(this.id)){
-		delete CH.cache(PH.CACHED_ROOTS_ID)[this.id];
-	}
+	var removeMessage = {"plugin":this};
 
-	if(this.hasOwnProperty("events") && PH.plugins.hasOwnProperty(this.id)){
-		var descriptor = CH.cache("PH.descriptor");
-		for (var i = 0; i < this.events.length; i++){
-			var pluginEvent = this.events[i];
+	PH.fire(PH.PLUGIN_REMOVE_EVENT + "-before",removeMessage,function(){
+		console.log('here0');
+		new Promise(function (resolve, reject) {
 
-			// remove plugin id from the descriptor object
-			if (descriptor.hasOwnProperty(pluginEvent)){
-				var pluginDescriptors = descriptor[pluginEvent];
-				for (var j = 0; j < pluginDescriptors.length; j++){
-					var pluginDescriptor = pluginDescriptors[j];
-					if (pluginDescriptor.hasOwnProperty("package") && pluginDescriptor.hasOwnProperty("plugin")
-						&& pluginDescriptor["package"] + "." + pluginDescriptor["plugin"] == this.id){
-							pluginDescriptors.splice(j, 1);
+			PH.fire(PH.PLUGIN_REMOVE_EVENT+"-in-process",removeMessage);
+
+			if(CH.cache(PH.CACHED_ROOTS_ID).hasOwnProperty(this.id)){
+				delete CH.cache(PH.CACHED_ROOTS_ID)[this.id];
+			}
+
+			if(this.hasOwnProperty("events") && PH.plugins.hasOwnProperty(this.id)){
+				var descriptor = CH.cache("PH.descriptor");
+				for (var i = 0; i < this.events.length; i++){
+					var pluginEvent = this.events[i];
+
+					// remove plugin id from the descriptor object
+					if (descriptor.hasOwnProperty(pluginEvent)){
+						var pluginDescriptors = descriptor[pluginEvent];
+						for (var j = 0; j < pluginDescriptors.length; j++){
+							var pluginDescriptor = pluginDescriptors[j];
+							if (pluginDescriptor.hasOwnProperty("package") && pluginDescriptor.hasOwnProperty("plugin")
+								&& pluginDescriptor["package"] + "." + pluginDescriptor["plugin"] == this.id){
+									pluginDescriptors.splice(j, 1);
+							}
+						}
+					}
+
+					// and remove plugin id from the events object.
+					if(PH.events.hasOwnProperty(pluginEvent)){
+						var pluginIds = PH.events[pluginEvent];
+						var index = pluginIds.indexOf(this.id);
+						if (index > -1) {
+							pluginIds.splice(index, 1);
+						}
 					}
 				}
+
+				delete PH.plugins[this.id];
 			}
 
-			// and remove plugin id from the events object.
-			if(PH.events.hasOwnProperty(pluginEvent)){
-				var pluginIds = PH.events[pluginEvent];
-				var index = pluginIds.indexOf(this.id);
-				if (index > -1) {
-					pluginIds.splice(index, 1);
-				}
-			}
-		}
+			resolve();
 
-		delete PH.plugins[this.id];
-	}
+		}).finally(function(){
+			PH.fire(PH.PLUGIN_REMOVE_EVENT+"-after",removeMessage);
+		});
+	});
 };
 
 /**
