@@ -9,7 +9,7 @@ PH.add(function(){
   ////
   var articleContentContainer = null;
 
-  var highlightWord = function(e){
+  function highlightWord(e){
     // gets value from input and finds words that match this value and higlights them.
     var me = this;
     var query = e.srcElement.value;
@@ -31,7 +31,7 @@ PH.add(function(){
     "id" : "wordhighlight.word-highlight",
     "events" : ["load-text-after"],
     "run" : function(params,configuration){
-     if (configuration.hasOwnProperty("mainContainerId")){
+     if (configuration["mainContainerId"]){
       articleContentContainer = params.textContainer;
 
       // add a textbox to the DOM so user can enters the words to highlight.

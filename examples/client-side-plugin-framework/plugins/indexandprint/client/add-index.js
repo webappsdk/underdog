@@ -11,10 +11,10 @@ PH.add(function(){
 
   var resourcesPath = null;
 
-  var loadArticleContent = function(e){
+  function loadArticleContent(e){
    // a reference of the index has been clicked,
    // request and print its content.
-   loadIntoEl(e.srcElement.getAttribute("content-url"),articleContentContainer,function(){
+   UD.loadIntoEl(e.srcElement.getAttribute("content-url"),articleContentContainer,function(){
      PH.fire("load-text-after", {"textContainer":articleContentContainer});
    });
   };
@@ -26,9 +26,9 @@ PH.add(function(){
     "id" : "indexandprint.add-index",
     "run" : function(params,configuration){
 
-     lockScreen();
+      this.sayHello();
 
-     if (configuration.hasOwnProperty("mainContainerId")){
+     if (configuration["mainContainerId"]){
 
        resourcesPath = this.getResourcePath();
 
@@ -43,7 +43,7 @@ PH.add(function(){
             var articleReference = null;
             for (var i = 0; i < articlesindex.length; i++){
               articleReference = articlesindex[i];
-              if(articleReference.hasOwnProperty("title") && articleReference.hasOwnProperty("url")){
+              if(articleReference["title"] && articleReference["url"]){
                 html += "<li content-url=\"" + resourcesPath + articleReference["url"] + "\" onmouseover=\"this.style.textDecoration='underline';\" class=\"article-reference\" onmouseout=\"this.style.textDecoration='none';\" style=\"color:#0000ff;cursor:pointer;\">" + articleReference["title"] + "</li>"
               }
             }
@@ -57,7 +57,6 @@ PH.add(function(){
             articlesReferencesEl = document.getElementsByClassName("article-reference");
             for ( var i = 0; i < articlesReferencesEl.length; i++){
               articlesReferencesEl[i].onclick = function(e){
-                lockScreen();
                 loadArticleContent(e);
               }
 
@@ -66,12 +65,8 @@ PH.add(function(){
                 loadArticleContent({srcElement:articlesReferencesEl[0]});
               }
             }
-          }else{
-            unlockScreen();
           }
         });
-      }else{
-        unlockScreen();
       }
     }
   };

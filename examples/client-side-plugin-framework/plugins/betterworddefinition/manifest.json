@@ -1,13 +1,13 @@
 {
-  "name": "Word definition",
+  "name": "Better word definition",
   "version": "1.0.0",
   "default_locale": "en",
   "description": "Displays a tooltip near the word with the mouse over it with its definition.",
   "icon": "",
   "author": "cookinapps.io",
   "homepage_url": "https://cookinapps.io/",
-  "store_url": "https://cookinapps.io/store/plugins/worddefinition",
-  "repository": "https://cookinapps.io/repository/plugins/worddefinition",
+  "store_url": "https://cookinapps.io/store/plugins/betterworddefinition",
+  "repository": "https://cookinapps.io/repository/plugins/betterworddefinition",
   "requires":[],
   "requires_other_plugin": [],
 }

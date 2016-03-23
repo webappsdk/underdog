@@ -3,6 +3,7 @@
   },
  "load-text-after":{
     "wordhighlight.word-highlight" : {},
+    "betterworddefinition.word-tooltip" : {},
     "worddefinition.word-tooltip" : {}
   }
 }
