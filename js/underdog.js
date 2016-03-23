@@ -57,15 +57,15 @@ var U = {
 	 * @return {String}     Type of the given object.
 	 */
 	type : function(obj) {
-	    if (Array.isArray(obj)){
-				return "array";
-			} else if (typeof obj == "string"){
-				return "string";
-			} else if (obj != null && typeof obj == "object"){
-				return "object";
-			} else{
-				return "other";
-			}
+    if (Array.isArray(obj)){
+			return "array";
+		} else if (typeof obj == "string"){
+			return "string";
+		} else if (obj != null && typeof obj == "object"){
+			return "object";
+		} else{
+			return "other";
+		}
 	},
 
 	/**
@@ -263,12 +263,12 @@ var PH = (function(){
 	var CACHED_RESOURCES_ID = "PH.resources";
 
 	/**
-	 * Id of cached descriptor, the JSON containing
+	 * Id of cached loader, the JSON containing
 	 * the pairs event-plugins.
 	 * The JSON will be used to load packaged plugins.
 	 * @type {String}
 	 */
-	var CACHED_DESCRIPTOR_ID = "PH.descriptor";
+	var CACHED_DESCRIPTOR_ID = "PH.loader";
 
 	/**
 	 * Id of cached roots urls.
@@ -278,11 +278,11 @@ var PH = (function(){
 
 	/**
 	 * Packaged plugins file name.
-	 * The file contains the JSON called descriptor
+	 * The file contains the JSON called loader
 	 * with events and plugin ids.
 	 * @type {String}
 	 */
-	var EVENT_PLUGIN_JSON_FILE = "plugins.json";
+	var EVENT_PLUGIN_JSON_FILE = "loader.json";
 
 	/**
 	 * Name of the plugin event fired at the end of
@@ -345,7 +345,7 @@ var PH = (function(){
 	 * be run. Contains only information about
 	 * packaged plugins.
 	 * @type {JSONObject}
-	 * cache id: PH.descriptor
+	 * cache id: PH.loader
 	 *
 	 * Root urls of plugins, url of the directory
 	 * where the packaged plugin is stored. Plugins
@@ -385,7 +385,7 @@ var PH = (function(){
 	var decoration = {
 		getResourcePath : _getResourcePath,
 		removeEvents : _removeEvents,
-		removeFromDescriptor : _removeFromDescriptor,
+		removeFromLoader : _removeFromLoader,
 		remove : _remove,
 		call : _call
 	};
@@ -431,21 +431,21 @@ var PH = (function(){
 			loadType = "lazy";
 		}
 
-		var descriptor = CH.cache(CACHED_DESCRIPTOR_ID);
-		if (descriptor[eventName]){
-			var pluginsIds = Object.keys(descriptor[eventName]);
+		var loader = CH.cache(CACHED_DESCRIPTOR_ID);
+		if (loader[eventName]){
+			var pluginsIds = Object.keys(loader[eventName]);
 
 			// Load plugins synchronously and callback once.
 			if(pluginsIds.length > 0){
-				var pluginsDescriptors = descriptor[eventName];
+				var pluginsLoaders = loader[eventName];
 				function loadPluginsSync(loadType,callbackRL,i){
 					if (i==null){
 						i = 0;
 					}
 					if(pluginsIds.length > i){
 						var pluginId = pluginsIds[i];
-						var pluginsDescriptor = pluginsDescriptors[pluginId];
-						if ( ( (pluginsDescriptor["load"] && pluginsDescriptor["load"] == loadType ) || (typeof pluginsDescriptor["load"] == "undefined" && loadType == "lazy") )
+						var pluginsLoader = pluginsLoaders[pluginId];
+						if ( ( (pluginsLoader["load"] && pluginsLoader["load"] == loadType ) || (typeof pluginsLoader["load"] == "undefined" && loadType == "lazy") )
 								&& typeof plugins[pluginId] == "undefined"){
 
 							loadPlugin(pluginId,function(){
@@ -466,8 +466,8 @@ var PH = (function(){
 				function loadPluginsAsync(loadType,callbackRL){
 					for ( var i = 0; i < pluginsIds.length; i++ ){
 						var pluginId = pluginsIds[i];
-						var pluginsDescriptor = pluginsDescriptors[pluginId];
-						if ( ( (pluginsDescriptor["load"] && pluginsDescriptor["load"] == loadType ) || (typeof pluginsDescriptor["load"] == "undefined" && loadType == "lazy") )
+						var pluginsLoader = pluginsLoaders[pluginId];
+						if ( ( (pluginsLoader["load"] && pluginsLoader["load"] == loadType ) || (typeof pluginsLoader["load"] == "undefined" && loadType == "lazy") )
 								&& typeof plugins[pluginId] == "undefined"){
 							loadPlugin(pluginId,null,true);
 						}
@@ -764,20 +764,20 @@ var PH = (function(){
 	};
 
 	/**
-	 * Remove from descriptor object, but not from
-	 * cached descriptor.
+	 * Remove from loader object, but not from
+	 * cached loader.
 	 * @return {void}
 	 */
-	function _removeFromDescriptor(){
+	function _removeFromLoader(){
 		if(scope["events"] && plugins[scope.id]){
-			var descriptor = CH.cache("PH.descriptor");
+			var loader = CH.cache("PH.loader");
 			for (var i = 0; i < scope.events.length; i++){
 				var pluginEvent = scope.events[i];
-				// remove plugin id from the descriptor object
-				if (descriptor[pluginEvent]){
-					var pluginDescriptors = descriptor[pluginEvent];
-					if (pluginDescriptors[scope.id]){{
-						delete pluginDescriptors[scope.id];
+				// remove plugin id from the loader object
+				if (loader[pluginEvent]){
+					var pluginLoaders = loader[pluginEvent];
+					if (pluginLoaders[scope.id]){{
+						delete pluginLoaders[scope.id];
 					}}
 				}
 			}
@@ -807,7 +807,7 @@ var PH = (function(){
 					delete extensions[scope.id];
 				}
 
-				scop.removeFromDescriptor();
+				scop.removeFromLoader();
 
 				scope.removeEvents();
 
@@ -866,8 +866,8 @@ var PH = (function(){
 				}
 
 				// eager load plugins.
-				function initialPluginLoad(descriptorJSON){
-					for (var eventName in descriptorJSON){
+				function initialPluginLoad(loaderJSON){
+					for (var eventName in loaderJSON){
 						if(eventName!=INIT_PH_AFTER_EVENT){
 							loadPlugins(eventName,"eager",null,true);
 						}
@@ -876,53 +876,53 @@ var PH = (function(){
 					PH.fire(INIT_PH_AFTER_EVENT);
 				};
 
-				// request descriptors: pairs of events and plugins
+				// request loaders: pairs of events and plugins
 				// and merge them.
 				// Also cache roots urls of packaged plugins.
-				function loadDescriptors(i,totalDescriptor,roots,callbackLD){
+				function loadLoaders(i,totalLoader,roots,callbackLD){
 					if (U.type(initArguments[i]) == "string"){
 						var root = initArguments[i];
 						var url = root + EVENT_PLUGIN_JSON_FILE;
-						CRUD.loadJSON(url, function(descriptor){
-							// merge descriptor with total descriptor.
-							for (var eventName in descriptor){
-								if (typeof totalDescriptor[eventName] == "undefined"){
-									totalDescriptor[eventName] = descriptor[eventName];
-									var pluginDescriptors = descriptor[eventName];
-									for (var pluginId in pluginDescriptors){
+						CRUD.loadJSON(url, function(loader){
+							// merge loader with total loader.
+							for (var eventName in loader){
+								if (typeof totalLoader[eventName] == "undefined"){
+									totalLoader[eventName] = loader[eventName];
+									var pluginLoaders = loader[eventName];
+									for (var pluginId in pluginLoaders){
 										roots[pluginId] = root;
 									}
 								}else{
-									var pluginDescriptors = descriptor[eventName];
-									var pluginDescriptorsFromTotalDescriptor = totalDescriptor[eventName];
-									for (var pluginId in pluginDescriptors){
+									var pluginLoaders = loader[eventName];
+									var pluginLoadersFromTotalLoader = totalLoader[eventName];
+									for (var pluginId in pluginLoaders){
 										roots[pluginId] = root;
-										pluginDescriptorsFromTotalDescriptor[pluginId] = pluginDescriptors[pluginId];
+										pluginLoadersFromTotalLoader[pluginId] = pluginLoaders[pluginId];
 									}
 								}
 							}
 							i++;
 							if (i < initArguments.length){
-								loadDescriptors(i,totalDescriptor,roots,callbackLD);
+								loadLoaders(i,totalLoader,roots,callbackLD);
 							}else{
-								// cache descriptors and roots.
-								CH.cache(CACHED_DESCRIPTOR_ID,totalDescriptor);
+								// cache loaders and roots.
+								CH.cache(CACHED_DESCRIPTOR_ID,totalLoader);
 								CH.cache(CACHED_ROOTS_ID,roots);
-								callbackLD(totalDescriptor);
+								callbackLD(totalLoader);
 							}
 						});
 					}
 				};
 
-				// check if descriptor JSON or roots are already cached.
+				// check if loader JSON or roots are already cached.
 				// and if they are not cached, request them and cache them.
-				var descriptorJSON = CH.cache(CACHED_DESCRIPTOR_ID);
+				var loaderJSON = CH.cache(CACHED_DESCRIPTOR_ID);
 				var roots = CH.cache(CACHED_ROOTS_ID);
-				if (U.un(descriptorJSON) || U.un(roots)){
-					loadDescriptors(0,{},{"all":initArguments},initialPluginLoad);
+				if (U.un(loaderJSON) || U.un(roots)){
+					loadLoaders(0,{},{"all":initArguments},initialPluginLoad);
 				}else{
 					// decriptor is cached, eager load some packaged plugins.
-					initialPluginLoad(descriptorJSON);
+					initialPluginLoad(loaderJSON);
 				}
 			}
 		},
@@ -1001,7 +1001,7 @@ var PH = (function(){
 					// extend it.
 					PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage,function(){
 						wrappedRun(plugin,parameters,null,function(){
-							plugin.removeFromDescriptor();
+							plugin.removeFromLoader();
 						});
 					});
 				}else{
