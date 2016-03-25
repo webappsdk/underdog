@@ -250,6 +250,13 @@ var CH = (function(){
  *        of client side plugins.
  */
 var PH = (function(){
+
+	/**
+	 * Used to give an id to plugins without id.
+	 * @type {Number}
+	 */
+	var uid = -1;
+
 	/**
 	 * Id of the cached list of plugins configurations.
 	 * @type {String}
@@ -968,9 +975,12 @@ var PH = (function(){
 			// get resources, remove ...
 			decoratePlugin(plugin);
 
-			if (plugin["id"]){
-				plugins[plugin.id] = plugin;
+			var idAssigned = false;
+			if (typeof plugin["id"] == "undefined"){
+				plugin["id"] = ++uid;
+				idAssigned = true;
 			}
+			plugins[plugin.id] = plugin;
 
 			////
 			// plugin extension:
@@ -982,7 +992,7 @@ var PH = (function(){
 			// look if plugin is extended by another
 			// plugin that has already been loaded.
 			var extended = false;
-			if (plugin["id"]){
+			if (!idAssigned){
 				extended = checkExtended(plugin);
 			}
 
@@ -1005,18 +1015,16 @@ var PH = (function(){
 						});
 					});
 				}else{
-					if (plugin["id"]){
-						// plugin id is added to events.
-						for ( var i = 0; i < pluginEvents.length; i++ ){
-							var pluginEvent = pluginEvents[i];
-							if ( typeof events[pluginEvent] == "undefined" ){
-								events[pluginEvent] = [];
-							}
-							events[pluginEvent].push(plugin.id);
+					// plugin id is added to events.
+					for ( var i = 0; i < pluginEvents.length; i++ ){
+						var pluginEvent = pluginEvents[i];
+						if ( typeof events[pluginEvent] == "undefined" ){
+							events[pluginEvent] = [];
 						}
-
-						PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage);
+						events[pluginEvent].push(plugin.id);
 					}
+
+					PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage);
 				}
 			}
 		},
