@@ -7,8 +7,6 @@ PH.add(function(){
   // private members
   ////
 
-  var x = 9;
-
   var articleContentContainer = null;
 
   var resourcesPath = null;
@@ -69,10 +67,6 @@ PH.add(function(){
           }
         });
       }
-    },
-    "sayHi" : function(){
-      console.log('x => ', x);
-      console.log('this => ', this);
     }
   };
 }());

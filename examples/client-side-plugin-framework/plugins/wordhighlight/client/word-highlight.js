@@ -30,10 +30,7 @@ PH.add(function(){
   return {
     "id" : "wordhighlight.word-highlight",
     "events" : ["load-text-after"],
-    "extends" : ["indexandprint.add-index"],
     "run" : function(params,configuration){
-
-      this.sayHi();
 
      if (configuration["mainContainerId"]){
       articleContentContainer = params.textContainer;
