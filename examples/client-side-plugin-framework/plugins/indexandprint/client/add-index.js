@@ -4,8 +4,10 @@
 PH.add(function(){
 
   ////
-  // private methods
+  // private members
   ////
+
+  var x = 9;
 
   var articleContentContainer = null;
 
@@ -19,8 +21,7 @@ PH.add(function(){
    });
   };
 
-  ////
-  // public methods
+  // public members
   ////
   return {
     "id" : "indexandprint.add-index",
@@ -68,6 +69,10 @@ PH.add(function(){
           }
         });
       }
+    },
+    "sayHi" : function(){
+      console.log('x => ', x);
+      console.log('this => ', this);
     }
   };
 }());
