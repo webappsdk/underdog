@@ -471,8 +471,9 @@ var PH = (function(){
 				};
 
 				function loadPluginsAsync(loadType,callbackRL){
-					for ( var i = 0; i < pluginsIds.length; i++ ){
-						var pluginId = pluginsIds[i];
+					var len = pluginsIds.length;
+					while(len--){
+						var pluginId = pluginsIds[len];
 						var pluginsLoader = pluginsLoaders[pluginId];
 						if ( ( (pluginsLoader["load"] && pluginsLoader["load"] == loadType ) || (typeof pluginsLoader["load"] == "undefined" && loadType == "lazy") )
 								&& typeof plugins[pluginId] == "undefined"){
@@ -559,8 +560,9 @@ var PH = (function(){
 		if(U.type(pluginToExtendExtends) == "array"){
 			// concatenate extends.
 			var pluginExtends = plugin["extends"];
-			for(var i = 0; i < pluginToExtendExtends.length; i++){
-				var extendedId = pluginToExtendExtends[i];
+			var len = pluginToExtendExtends.length;
+			while (len--){
+				var extendedId = pluginToExtendExtends[len];
 				if (pluginExtends.indexOf(extendedId) == -1){
 					pluginExtends.push(extendedId);
 				}
@@ -583,8 +585,9 @@ var PH = (function(){
 		var pluginExtends = plugin["extends"];
 		if(U.type(pluginExtends) == "array"){
 			var pluginsToExtend = plugin["extends"];
-			for (var i = 0; i < pluginsToExtend.length; i++){
-				var pluginId = pluginsToExtend[i];
+			var len = pluginsToExtend.length;
+			while (len--){
+				var pluginId = pluginsToExtend[len];
 				// save in extensions
 				if (extensions[pluginId]){
 					extensions[pluginId].push(plugin.id);
@@ -617,8 +620,9 @@ var PH = (function(){
 			// plugin already has extensions loaded.
 			// extend plugin and remove it.
 			var extensionPlugins = extensions[plugin.id];
-			for (var i = 0; i < extensionPlugins.length; i++){
-				var pluginId = extensionPlugins[i];
+			var len = extensionPlugins.length;
+			while (len--){
+				var pluginId = extensionPlugins[len];
 				var extensionPlugin = PH.getPluginById(pluginId);
 				if (extensionPlugin!=null){
 					extend(extensionPlugin,plugin);
@@ -766,8 +770,9 @@ var PH = (function(){
 				eventsToRemove = []
 				// remove just given events.
 				// just check the plugin has them.
-				for(var i = 0; i < arguments.length; i++){
-					var eventName = arguments[i];
+				var len = arguments.length;
+				while (len--){
+					var eventName = arguments[len];
 					if (typeof eventName == "string" && pluginEvents[eventName]){
 						eventsToRemove.push(eventName);
 					}
@@ -775,8 +780,9 @@ var PH = (function(){
 			}
 
 			// and remove plugin id from the events object.
-			for (var i = 0; i < eventsToRemove.length; i++){
-				var pluginEvent = eventsToRemove[i];
+			var len = eventsToRemove.length;
+			while (len--){
+				var pluginEvent = eventsToRemove[len];
 				if(events[pluginEvent]){
 					var pluginIds = events[pluginEvent];
 					var index = pluginIds.indexOf(this.id);
@@ -796,8 +802,9 @@ var PH = (function(){
 	function _removeFromLoader(){
 		if(scope["events"] && plugins[scope.id]){
 			var loader = CH.cache("PH.loader");
-			for (var i = 0; i < scope.events.length; i++){
-				var pluginEvent = scope.events[i];
+			var len = scope.events.length;
+			while (len--){
+				var pluginEvent = scope.events[len];
 				// remove plugin id from the loader object
 				if (loader[pluginEvent]){
 					var pluginLoaders = loader[pluginEvent];
@@ -1034,8 +1041,9 @@ var PH = (function(){
 					});
 				}else{
 					// plugin id is added to events.
-					for ( var i = 0; i < pluginEvents.length; i++ ){
-						var pluginEvent = pluginEvents[i];
+					var len = pluginEvents.length;
+					while (len--){
+						var pluginEvent = pluginEvents[len];
 						if ( typeof events[pluginEvent] == "undefined" ){
 							events[pluginEvent] = [];
 						}
@@ -1062,9 +1070,10 @@ var PH = (function(){
 				// run plugins
 				if (events[eventName]){
 					var pluginIds = events[eventName];
+					var len = pluginIds.length;
 
-					for ( var i = 0; i < pluginIds.length; i++ ){
-						var plugin = PH.getPluginById(pluginIds[i]);
+					while (len--){
+						var plugin = PH.getPluginById(pluginIds[len]);
 						if (plugin!=null){
 							wrappedRun(plugin, parameters, eventName, callback);
 						}
@@ -1122,10 +1131,11 @@ var PH = (function(){
  					// Plugins can use the onMessage listener function
  					// to retrieve the message.
  					var plugin = null;
- 					for (var i = 0; i < toIds.length; i++){
- 						plugin = PH.getPluginById(toIds[i]);
+					var len = toIds.length;
+					while (len--){
+						plugin = PH.getPluginById(toIds[len]);
  						callPluginOnMessage(plugin,message,_from,callback);
- 					}
+					}
  				}
  				resolve();
  			});
@@ -1175,12 +1185,13 @@ var CRUD = {
 											"MSXML2.XmlHttp.2.0",
 											"Microsoft.XmlHttp"]
 
-			 for(var i = 0, len = versions.length; i < len; i++) {
+			var len = versions.length;
+			while (len--){
 				try {
-					xhr = new ActiveXObject(versions[i]);
+					xhr = new ActiveXObject(versions[len]);
 					break;
 				}catch(err){}
-			 }
+			}
 		}
 
 		xhr.onreadystatechange = ensureReadiness;
