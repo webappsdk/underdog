@@ -8,7 +8,6 @@ PH.add({
   "articleContentContainer" : null,
   "run" : function(params){
 
-    this.remove();
 
     Tooltip.new("word-definition-tooltip");
 
@@ -28,7 +27,13 @@ PH.add({
       }else{
         Tooltip.hide("word-definition-tooltip");
       }
-    }
+    };
+
+    // test the inter-plugin communication.
+    PH.sendMessage("Hello!, this is a message!",this,null,function(){
+      // callback of the communication.
+      console.log('Callback of the communication.');
+    });
   },
   "getWordAtPoint" : function(elem, x, y) {
     // this function will be overrided.

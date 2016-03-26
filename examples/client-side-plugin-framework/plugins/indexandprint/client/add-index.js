@@ -67,6 +67,12 @@ PH.add(function(){
           }
         });
       }
-    }
+    },
+    "onMessage" : function(message,_from,callback){
+      console.log('Test of communication inter-plugin: Message : ', message);
+      if (callback){
+        callback();
+      }
+    },
   };
 }());

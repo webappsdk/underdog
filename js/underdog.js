@@ -722,6 +722,24 @@ var PH = (function(){
 	};
 
 	/**
+	 * @method Asynchronously and secure call onMessage function.
+	 * @param  {Object}   plugin   Plugin that contains onMessage function.
+	 * @param  {Object}   message  Message to pass to onMessage function.
+	 * @param  {Object}   _from    Sender of the message.
+	 * @param  {Function} callback Callback that will be called inside the onMessage function.
+	 * @return {void}
+	 */
+	function callPluginOnMessage(plugin,message,_from,callback){
+		if (plugin!= null && typeof plugin["onMessage"] == "function"){
+			new Promise(function(resolve,reject){
+				try{
+					plugin.onMessage(message,_from,callback);
+				}catch(err){}
+			});
+		}
+	};
+
+	/**
 	 * @function Get resource directory path of a plugin.
 	 */
 	function _getResourcePath(){
@@ -1091,28 +1109,27 @@ var PH = (function(){
 		 * @return {void}
 		 */
 		sendMessage : function(message,_from,toIds,callback){
-			if (U.un(toIds)){
-				// send message to all plugins.
-				var plugin = null;
-				for (var id in plugins){
-					plugin = plugins[id];
-					if(typeof plugin.onMessage == "function"){
-						plugin.onMessage(message,_from,callback);
-					}
-				}
-			}else{
-				// send message to the plugins with the given ids.
-				// Plugins can use the onMessage listener function
-				// to retrieve the message.
-				var plugin = null;
-				for (var i = 0; i < toIds.length; i++){
-					plugin = PH.getPluginById(toIds[i]);
-					if (plugin!=null){
-						plugin.onMessage(message,_from,callback);
-					}
-				}
-			}
-		},
+ 			new Promise(function(resolve,reject){
+ 				if (U.un(toIds)){
+ 					// send message to all plugins.
+ 					var plugin = null;
+ 					for (var id in plugins){
+ 						plugin = plugins[id];
+ 						callPluginOnMessage(plugin,message,_from,callback);
+ 					}
+ 				}else{
+ 					// send message to the plugins with the given ids.
+ 					// Plugins can use the onMessage listener function
+ 					// to retrieve the message.
+ 					var plugin = null;
+ 					for (var i = 0; i < toIds.length; i++){
+ 						plugin = PH.getPluginById(toIds[i]);
+ 						callPluginOnMessage(plugin,message,_from,callback);
+ 					}
+ 				}
+ 				resolve();
+ 			});
+ 		},
 
 		addDecorator : function(memberName, member){
 			decoration[memberName] = member;
