@@ -7,8 +7,6 @@ PH.add({
   "events" : ["load-text-after"],
   "articleContentContainer" : null,
   "run" : function(params){
-
-
     Tooltip.new("word-definition-tooltip");
 
     this.articleContentContainer = params.textContainer;

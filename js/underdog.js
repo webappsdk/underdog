@@ -504,13 +504,13 @@ var PH = (function(){
 		if (pluginCoordinates != null){
 			if (async){
 				loadPluginConfiguration(pluginCoordinates,function(configuration){
-						PH.fire(PLUGIN_CONFIGURATION_LOAD_EVENT+"-after",{"pluginId":pluginId,"configuration":configuration});
+						PH.fire(PLUGIN_CONFIGURATION_LOAD_EVENT+"-after",{"plugin":{"id":pluginId},"data":configuration});
 				});
 				var url = CH.cache(CACHED_ROOTS_ID)[pluginId] + pluginCoordinates["package"] + "/client/" + pluginCoordinates["pluginPath"] + ".js";
 				U.loadjs(url,callback);
 			}else{
 				loadPluginConfiguration(pluginCoordinates,function(configuration){
-					PH.fire(PLUGIN_CONFIGURATION_LOAD_EVENT+"-after",{"pluginId":pluginId,"configuration":configuration},function(){
+					PH.fire(PLUGIN_CONFIGURATION_LOAD_EVENT+"-after",{"plugin":{"id":pluginId},"data":configuration},function(){
 						var url = CH.cache(CACHED_ROOTS_ID)[pluginId] + pluginCoordinates["package"] + "/client/" + pluginCoordinates["pluginPath"] + ".js";
 						U.loadjs(url,callback);
 					});
@@ -666,8 +666,8 @@ var PH = (function(){
 	 * @param  {Function}		callback		Callback function fired after run.
 	 * @return {void}
 	 */
-	function wrappedRun(plugin, _params, eventName, callback){
-		var eventMessage = {"plugin":plugin,"params":_params,"eventName":eventName};
+	function wrappedRun(plugin, _params, eventName, callbackSuccess, callbackFailure){
+		var eventMessage = {"plugin":plugin,"data":_params,"eventName":eventName};
 		// fire before event.
 		PH.fire(plugin.id + "-before", eventMessage, function(params){
 			// use promise for asynchronous plugin run.
@@ -681,8 +681,16 @@ var PH = (function(){
 				}
 				// run plugin.
 				try{
-					var value = plugin.run(params,configuration,eventName);
-					resolve(value);
+					plugin.run(params,configuration,eventName,function(data){
+						if (callbackSuccess){
+							callbackSuccess({"plugin":plugin,"data":data,"eventName":eventName});
+						}
+					},function(data){
+						if (callbackFailure){
+							callbackFailure({"plugin":plugin,"data":data,"eventName":eventName});
+						}
+					});
+					resolve();
 				}catch(err){
 					console.error( (plugin.id? "[" + plugin.id + "]" : "") + " plugin execution failure : ", err);
 					if(typeof plugin["onFailure"] == "function"){
@@ -701,27 +709,20 @@ var PH = (function(){
 					}
 				}
 			}).then(function(value){
-				// plugin execution has succeded.
-				if (callback){
-					callback(value);
-				}
+				// fire after event only on success.
+				PH.fire(plugin.id + "-after", eventMessage);
 			},function(reason){
 				// plugin execution has failed
 				// so remove it si it is not executed again.
 				plugin.remove();
 
-				var failureMessage = {"success":false,"message":reason,"data":eventMessage};
-
-				if (callback){
-					callback(failureMessage);
+				if (callbackFailure){
+					callbackFailure(eventMessage);
 				}
 
 				// fire execution failure event
-				PH.fire(PLUGIN_EXECUTION_FAILURE_EVENT,failureMessage);
+				PH.fire(PLUGIN_EXECUTION_FAILURE_EVENT,eventMessage);
 
-			}).finally(function(){
-				// fire after event.
-				PH.fire(plugin.id + "-after", eventMessage);
 			});
 		});
 	};
@@ -801,16 +802,16 @@ var PH = (function(){
 	 * @return {void}
 	 */
 	function _removeFromLoader(){
-		if(scope["events"] && plugins[scope.id]){
+		if(this["events"] && plugins[this.id]){
 			var loader = CH.cache("PH.loader");
-			var len = scope.events.length;
+			var len = this.events.length;
 			while (len--){
-				var pluginEvent = scope.events[len];
+				var pluginEvent = this.events[len];
 				// remove plugin id from the loader object
 				if (loader[pluginEvent]){
 					var pluginLoaders = loader[pluginEvent];
-					if (pluginLoaders[scope.id]){{
-						delete pluginLoaders[scope.id];
+					if (pluginLoaders[this.id]){{
+						delete pluginLoaders[this.id];
 					}}
 				}
 			}
@@ -840,7 +841,7 @@ var PH = (function(){
 					delete extensions[scope.id];
 				}
 
-				scop.removeFromLoader();
+				scope.removeFromLoader();
 
 				scope.removeEvents();
 
@@ -1021,7 +1022,7 @@ var PH = (function(){
 				extended = checkExtended(plugin);
 			}
 
-			var pluginAddMessage = {"plugin":plugin,"params":params};
+			var pluginAddMessage = {"plugin":plugin,"data":params};
 			if (extended){
 				// do not manipulate an event that has been extended,
 				// it has became an inactive plugin, its extensions
@@ -1035,9 +1036,8 @@ var PH = (function(){
 					// The plugin is added to plugins in case other may want to
 					// extend it.
 					PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage,function(){
-						wrappedRun(plugin,params,null,function(){
-							plugin.removeFromLoader();
-						});
+						plugin.removeFromLoader();
+						wrappedRun(plugin,params);
 					});
 				}else{
 					// plugin id is added to events.
@@ -1062,7 +1062,7 @@ var PH = (function(){
 		 * @param  {Function} callback		Callback function.
 		 * @return {void}
 		 */
-		fire : function(eventName, params, callback){
+		fire : function(eventName, params, callbackSuccess, callbackFailure){
 			// lazy load the plugins that have not been loaded yet
 			// that will be run on given event.
 			loadPlugins(eventName,"lazy",function(){
@@ -1073,14 +1073,14 @@ var PH = (function(){
 
 					while (len--){
 						var plugin = PH.getPluginById(pluginIds[len]);
-						wrappedRun(plugin, params, eventName, callback);
+						wrappedRun(plugin, params, eventName, callbackSuccess, callbackFailure);
 					}
 				}else{
-					if (callback){
-						if (params["params"]){
-							params = params["params"];
+					if (callbackSuccess){
+						if (params["data"]){
+							params = params["data"];
 						}
-						callback(params);
+						callbackSuccess(params);
 					}
 				}
 			});
