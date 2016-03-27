@@ -661,18 +661,19 @@ var PH = (function(){
 	/**
 	 * @method Wrap plugin run, firing events before, during and after the plugin run.
 	 * @param  {JSONObject} plugin 			Plugin to wrap.
-	 * @param  {Object}   	parameters	Parameters with data we want to pass to the plugin.
+	 * @param  {Object}   	params	Parameters with data we want to pass to the plugin.
 	 * @param  {String}   	eventName		Name of the event.
 	 * @param  {Function}		callback		Callback function fired after run.
 	 * @return {void}
 	 */
-	function wrappedRun(plugin, parameters, eventName, callback){
+	function wrappedRun(plugin, _params, eventName, callback){
+		var eventMessage = {"plugin":plugin,"params":_params,"eventName":eventName};
 		// fire before event.
-		PH.fire(plugin.id + "-before", parameters, function(parameters){
+		PH.fire(plugin.id + "-before", eventMessage, function(params){
 			// use promise for asynchronous plugin run.
 			new Promise(function (resolve, reject) {
 				// fire in-process event.
-				PH.fire(plugin.id + "-in-process",parameters);
+				PH.fire(plugin.id + "-in-process",eventMessage);
 				// get plugin configuration.
 				var configuration = CH.cache(CACHED_CONFIGURATIONS_ID)[plugin.id];
 				if(U.un(configuration)){
@@ -680,13 +681,13 @@ var PH = (function(){
 				}
 				// run plugin.
 				try{
-					var value = plugin.run(parameters,configuration,eventName);
+					var value = plugin.run(params,configuration,eventName);
 					resolve(value);
 				}catch(err){
 					console.error( (plugin.id? "[" + plugin.id + "]" : "") + " plugin execution failure : ", err);
 					if(typeof plugin["onFailure"] == "function"){
 						try{
-							var error = plugin["onFailure"](PLUGIN_EXECUTION_FAILURE_MESSAGE,parameters,eventName);
+							var error = plugin["onFailure"](PLUGIN_EXECUTION_FAILURE_MESSAGE,params,eventName);
 							if(U.un(error)){
 								reject(PLUGIN_EXECUTION_FAILURE_MESSAGE);
 							}else{
@@ -709,7 +710,7 @@ var PH = (function(){
 				// so remove it si it is not executed again.
 				plugin.remove();
 
-				var failureMessage = {"success":false,"message":reason,"data":{"pluginId":plugin.id}};
+				var failureMessage = {"success":false,"message":reason,"data":eventMessage};
 
 				if (callback){
 					callback(failureMessage);
@@ -720,7 +721,7 @@ var PH = (function(){
 
 			}).finally(function(){
 				// fire after event.
-				PH.fire(plugin.id + "-after", parameters);
+				PH.fire(plugin.id + "-after", eventMessage);
 			});
 		});
 	};
@@ -991,11 +992,10 @@ var PH = (function(){
 		 * @method Adds a client side plugin into the Plugin Handler.
 		 *         It will wait to be run until one of its events is fired.
 		 * @param  {JSONObject} plugin			JSON Object with the plugin description.
-		 * @param  {JSONObject} parameters	Optional parameters to pass to plugin.
+		 * @param  {JSONObject} params	Optional params to pass to plugin.
 		 * @return {void}
 		 */
-		add : function(plugin, parameters){
-
+		add : function(plugin, params){
 			// add the same members for all plugins,
 			// get resources, remove ...
 			decoratePlugin(plugin);
@@ -1021,21 +1021,21 @@ var PH = (function(){
 				extended = checkExtended(plugin);
 			}
 
+			var pluginAddMessage = {"plugin":plugin,"params":params};
 			if (extended){
 				// do not manipulate an event that has been extended,
 				// it has became an inactive plugin, its extensions
 				// will do the job.
 				PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage);
 			}else{
-				var pluginAddMessage = {"plugin":plugin,"parameters":parameters};
 				var pluginEvents = plugin.events;
-				if ( U.un(pluginEvents) || pluginEvents.length == 0 ){
+				if ( U.un(pluginEvents) || ( U.type(pluginEvents) == "array" && pluginEvents.length == 0 ) ){
 					// when a plugin is added without specifying the events
 					// when it has to be run, it is run when added.
 					// The plugin is added to plugins in case other may want to
 					// extend it.
 					PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage,function(){
-						wrappedRun(plugin,parameters,null,function(){
+						wrappedRun(plugin,params,null,function(){
 							plugin.removeFromLoader();
 						});
 					});
@@ -1043,11 +1043,11 @@ var PH = (function(){
 					// plugin id is added to events.
 					var len = pluginEvents.length;
 					while (len--){
-						var pluginEvent = pluginEvents[len];
-						if ( typeof events[pluginEvent] == "undefined" ){
-							events[pluginEvent] = [];
+						var eventName = pluginEvents[len];
+						if ( typeof eventName == "string" && typeof events[eventName] == "undefined" ){
+							events[eventName] = [];
 						}
-						events[pluginEvent].push(plugin.id);
+						events[eventName].push(plugin.id);
 					}
 
 					PH.fire(PLUGIN_ADD_EVENT+"-after",pluginAddMessage);
@@ -1058,15 +1058,14 @@ var PH = (function(){
 		/**
 		 * @method Fire a plugin event that can potentialy run plugins.
 		 * @param  {String}   eventName		Name of the event.
-		 * @param  {Object}   parameters	with data we want to pass to the plugin.
+		 * @param  {Object}   params	with data we want to pass to the plugin.
 		 * @param  {Function} callback		Callback function.
 		 * @return {void}
 		 */
-		fire : function(eventName, parameters, callback){
+		fire : function(eventName, params, callback){
 			// lazy load the plugins that have not been loaded yet
 			// that will be run on given event.
 			loadPlugins(eventName,"lazy",function(){
-
 				// run plugins
 				if (events[eventName]){
 					var pluginIds = events[eventName];
@@ -1074,13 +1073,14 @@ var PH = (function(){
 
 					while (len--){
 						var plugin = PH.getPluginById(pluginIds[len]);
-						if (plugin!=null){
-							wrappedRun(plugin, parameters, eventName, callback);
-						}
+						wrappedRun(plugin, params, eventName, callback);
 					}
 				}else{
 					if (callback){
-						callback(parameters);
+						if (params["params"]){
+							params = params["params"];
+						}
+						callback(params);
 					}
 				}
 			});
