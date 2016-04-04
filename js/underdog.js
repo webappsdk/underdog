@@ -750,8 +750,17 @@ var PH = (function(){
 	 */
 	function _getResourcePath(){
 		try{
-			var packageAndPlugin = this.id.split(".");
-			return this._root + "/" + packageAndPlugin[0] + "/resources/";
+			var packagesAndPlugin = this.id.split(".");
+			var packages = "";
+			var len = packagesAndPlugin.length - 1;
+			if (len > 0){
+				while (len--){
+					packages = "/" + packagesAndPlugin[len] + packages;
+				}
+			}else{
+				packages = "/" + packagesAndPlugin[0];
+			}
+			return this._root + packages + "/resources/";
 		}catch(err){
 			return "";
 		}
